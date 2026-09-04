@@ -1,0 +1,13 @@
+﻿{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet build:*)","Bash(dotnet test:*)","Bash(dotnet run:*)",
+      "Bash(dotnet publish:*)","Bash(dotnet add:*)","Bash(dotnet new:*)",
+      "Bash(dotnet sln:*)","Bash(dotnet package:*)",
+      "Bash(git status:*)","Bash(git diff:*)","Bash(git log:*)","Bash(git add:*)",
+      "Bash(echoscu:*)","Bash(findscu:*)","Bash(dcmdump:*)",
+      "Bash(dump2dcm:*)","Bash(wlmscpfs:*)"
+    ],
+    "deny": ["Read(../**)","Bash(rm -rf:*)"]
+  }
+}

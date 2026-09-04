@@ -1,0 +1,26 @@
+﻿bin/
+obj/
+*.user
+artifacts/
+publish/
+
+# 受診者データ・通信記録は絶対にコミットしない
+*.db
+*.db-wal
+*.db-shm
+*.pcapng
+*.pcap
+*.etl
+*.dcm
+*.wl
+captures/
+evidence/
+logs/
+raw/
+MwmLogs/
+MwmCapture/
+
+config/profiles/*.local.jsonc
+config/backup/
+.vs/
+.vscode/settings.json
