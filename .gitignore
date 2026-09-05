@@ -20,6 +20,13 @@ raw/
 MwmLogs/
 MwmCapture/
 
+# 依頼電文の実データ・レイアウト定義書（個人情報を含む）
+# 注意: 実ファイル名は "1irai20260701083008.csv" のように先頭が数字なので
+#       **/irai*.csv ではマッチしない。*irai*.csv を使うこと。
+*irai*.csv
+*.xlsx
+*.xls
+
 config/profiles/*.local.jsonc
 config/backup/
 .vs/
