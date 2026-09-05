@@ -24,3 +24,6 @@ config/profiles/*.local.jsonc
 config/backup/
 .vs/
 .vscode/settings.json
+
+# スパイクの生成物（*.dcm 以外にも生バイトログ等を出すため出力先ごと除外）
+spikes/**/out/
