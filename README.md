@@ -9,3 +9,4 @@ BRIDGE-Navi の受診者情報を MWM で検査装置に配信する。
 - 実装タスクと受入条件: docs/実装指示書.md
 - 絶対に守る規則: CLAUDE.md
 - 環境メモ: docs/TODO.md
+- Git の使い方メモ: docs/git-memo.md
