@@ -8,12 +8,19 @@ using Microsoft.Extensions.Logging;
 namespace Ascube.Mwm.Scp;
 
 /// <summary>
-/// C-ECHO SCP ＋ アソシエーション制御（実装指示書 v2 T3）。
+/// C-ECHO SCP ＋ アソシエーション制御（実装指示書 v2 T3）＋ C-FIND 最小実装（T4）。
 /// フロー：ルーティングでプロファイル解決 → 解決結果をログ出力 → Calling AE 照合 → PC ごとに accept/reject。
-/// C-FIND は T4 で追加する。
+/// C-FIND は現時点ではハードコードした1件を返すのみ（実データ照合は T5 MatchEngine、
+/// データセット組み立ては T6 DatasetBuilder で置き換える）。
 /// </summary>
-public sealed class MwmDicomService : DicomService, IDicomServiceProvider, IDicomCEchoProvider
+public sealed class MwmDicomService : DicomService, IDicomServiceProvider, IDicomCEchoProvider, IDicomCFindProvider
 {
+    private static readonly DicomUID[] SupportedAbstractSyntaxes =
+    [
+        DicomUID.Verification,
+        DicomUID.ModalityWorklistInformationModelFind,
+    ];
+
     public MwmDicomService(INetworkStream stream, Encoding fallbackEncoding, ILogger logger, DicomServiceDependencies dependencies)
         : base(stream, fallbackEncoding, logger, dependencies)
     {
@@ -62,7 +69,7 @@ public sealed class MwmDicomService : DicomService, IDicomServiceProvider, IDico
         // 規則9：未サポートの PC だけを reject し、アソシエーション自体は成立させる。
         foreach (var pc in association.PresentationContexts)
         {
-            if (pc.AbstractSyntax == DicomUID.Verification)
+            if (SupportedAbstractSyntaxes.Contains(pc.AbstractSyntax))
             {
                 pc.AcceptTransferSyntaxes(acceptedTransferSyntaxes);
             }
@@ -120,4 +127,51 @@ public sealed class MwmDicomService : DicomService, IDicomServiceProvider, IDico
 
     public Task<DicomCEchoResponse> OnCEchoRequestAsync(DicomCEchoRequest request)
         => Task.FromResult(new DicomCEchoResponse(request, DicomStatus.Success));
+
+    /// <summary>
+    /// T4：C-FIND 最小実装。実データの照合（T5 MatchEngine）・実データからの組み立て（T6 DatasetBuilder）は
+    /// まだ無く、ハードコードした1件を Pending で返してから Success を返すだけ。
+    /// ここで得た pcap を以後の「正解サンプル」とする（実装指示書 v2 T4）。
+    /// </summary>
+    public async IAsyncEnumerable<DicomCFindResponse> OnCFindRequestAsync(DicomCFindRequest request)
+    {
+        var response = new DicomCFindResponse(request, DicomStatus.Pending)
+        {
+            Dataset = BuildFixedWorklistDataset(),
+        };
+        yield return response;
+
+        yield return new DicomCFindResponse(request, DicomStatus.Success);
+        await Task.CompletedTask;
+    }
+
+    private static DicomDataset BuildFixedWorklistDataset()
+    {
+        var dataset = new DicomDataset();
+
+        // 規則6：SpecificCharacterSet は DicomDataset に最初に設定する。
+        dataset.Add(DicomTag.SpecificCharacterSet, "ISO_IR 192");
+
+        // T4 時点ではハードコード値（実データではない）。T5/T6 で実データ経由の生成に置き換える。
+        dataset.Add(DicomTag.PatientName, "アスキューブ^タロウ");
+        dataset.Add(DicomTag.PatientID, "000012345678");
+        dataset.Add(DicomTag.PatientBirthDate, "19700101");
+        dataset.Add(DicomTag.PatientSex, "M");
+        dataset.Add(DicomTag.StudyInstanceUID, "2.25.100000000000000000000000000000000001");
+        dataset.Add(DicomTag.AccessionNumber, "A0000001");
+        dataset.Add(DicomTag.RequestedProcedureID, "R0000001");
+        dataset.Add(DicomTag.RequestedProcedureDescription, "骨密度測定");
+
+        var scheduledStep = new DicomDataset
+        {
+            { DicomTag.Modality, "BMD" },
+            { DicomTag.ScheduledStationAETitle, "ASCUBE_MWM" },
+            { DicomTag.ScheduledProcedureStepStartDate, DateTime.Today },
+            { DicomTag.ScheduledProcedureStepStartTime, DateTime.Today },
+            { DicomTag.ScheduledProcedureStepDescription, "骨密度測定" },
+        };
+        dataset.Add(new DicomSequence(DicomTag.ScheduledProcedureStepSequence, scheduledStep));
+
+        return dataset;
+    }
 }
