@@ -9,4 +9,10 @@
     <ProjectReference Include="..\Ascube.Mwm.Store\Ascube.Mwm.Store.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="fo-dicom" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" />
+  </ItemGroup>
+
 </Project>
