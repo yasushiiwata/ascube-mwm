@@ -1,0 +1,136 @@
+using Ascube.Mwm.Abstractions;
+
+namespace Ascube.Mwm.Store.Tests;
+
+public class SqliteWorklistRepositoryTests
+{
+    private static WorklistEntry MakeEntry() => new()
+    {
+        StablePatientId = "000012345678",
+        FamilyNameKanji = "武田",
+        GivenNameKanji = "太郎",
+        BirthDate = "19800101",
+        Sex = Sex.Male,
+        ScheduledDate = "20260928",
+    };
+
+    [Fact]
+    public async Task QueryAsync_NoCurrentEntry_ReturnsEmpty()
+    {
+        using var db = new TestDatabase();
+        _ = new SqliteWorklistWriter(db.Options()); // スキーマだけ作らせる
+        var repository = new SqliteWorklistRepository(db.Options());
+
+        var results = await CollectAsync(repository);
+
+        Assert.Empty(results);
+    }
+
+    [Fact]
+    public async Task QueryAsync_AfterSetCurrent_ReturnsExactlyOneMatchingWorkItem()
+    {
+        using var db = new TestDatabase();
+        var writer = new SqliteWorklistWriter(db.Options());
+        var entry = MakeEntry();
+        await writer.SetCurrentAsync(entry);
+        var repository = new SqliteWorklistRepository(db.Options());
+
+        var results = await CollectAsync(repository);
+
+        var view = Assert.Single(results);
+        Assert.Equal(entry.StablePatientId, view.StablePatientId);
+        Assert.Matches(@"^2\.25\.\d{1,39}$", view.StudyInstanceUid);
+    }
+
+    [Fact]
+    public async Task QueryAsync_AfterClearCurrent_ReturnsEmpty()
+    {
+        using var db = new TestDatabase();
+        var writer = new SqliteWorklistWriter(db.Options());
+        await writer.SetCurrentAsync(MakeEntry());
+        await writer.ClearCurrentAsync();
+        var repository = new SqliteWorklistRepository(db.Options());
+
+        Assert.Empty(await CollectAsync(repository));
+    }
+
+    [Fact]
+    public async Task QueryAsync_AfterTtlExpires_ReturnsEmpty()
+    {
+        using var db = new TestDatabase();
+        var time = new ManualTimeProvider(new DateTimeOffset(2026, 9, 28, 9, 0, 0, TimeSpan.Zero));
+        var writer = new SqliteWorklistWriter(db.Options(currentTtl: TimeSpan.FromMinutes(15)), time);
+        await writer.SetCurrentAsync(MakeEntry());
+
+        time.Advance(TimeSpan.FromMinutes(15) + TimeSpan.FromSeconds(1));
+        var repository = new SqliteWorklistRepository(db.Options(currentTtl: TimeSpan.FromMinutes(15)), time);
+
+        Assert.Empty(await CollectAsync(repository));
+    }
+
+    [Fact]
+    public async Task QueryAsync_LimitZero_ReturnsEmptyEvenWhenEntryExists()
+    {
+        using var db = new TestDatabase();
+        var writer = new SqliteWorklistWriter(db.Options());
+        await writer.SetCurrentAsync(MakeEntry());
+        var repository = new SqliteWorklistRepository(db.Options());
+
+        var results = await CollectAsync(repository, limit: 0);
+
+        Assert.Empty(results);
+    }
+
+    [Fact]
+    public async Task ExplainAsync_NoCurrentEntry_NamesTheReason()
+    {
+        using var db = new TestDatabase();
+        _ = new SqliteWorklistWriter(db.Options());
+        var repository = new SqliteWorklistRepository(db.Options());
+
+        var result = await repository.ExplainAsync(new QueryCriteria());
+
+        Assert.False(result.Found);
+        Assert.Contains("存在しません", result.Reason);
+    }
+
+    [Fact]
+    public async Task ExplainAsync_TtlExpired_NamesTheReasonWithTimestamps()
+    {
+        using var db = new TestDatabase();
+        var time = new ManualTimeProvider(new DateTimeOffset(2026, 9, 28, 9, 0, 0, TimeSpan.Zero));
+        var writer = new SqliteWorklistWriter(db.Options(currentTtl: TimeSpan.FromMinutes(15)), time);
+        await writer.SetCurrentAsync(MakeEntry());
+        time.Advance(TimeSpan.FromMinutes(20));
+        var repository = new SqliteWorklistRepository(db.Options(currentTtl: TimeSpan.FromMinutes(15)), time);
+
+        var result = await repository.ExplainAsync(new QueryCriteria());
+
+        Assert.False(result.Found);
+        Assert.Contains("TTL", result.Reason);
+    }
+
+    [Fact]
+    public async Task ExplainAsync_LiveEntry_ReportsFound()
+    {
+        using var db = new TestDatabase();
+        var writer = new SqliteWorklistWriter(db.Options());
+        await writer.SetCurrentAsync(MakeEntry());
+        var repository = new SqliteWorklistRepository(db.Options());
+
+        var result = await repository.ExplainAsync(new QueryCriteria());
+
+        Assert.True(result.Found);
+    }
+
+    private static async Task<List<WorkItemView>> CollectAsync(SqliteWorklistRepository repository, int limit = 10)
+    {
+        var results = new List<WorkItemView>();
+        await foreach (var item in repository.QueryAsync(new QueryCriteria(), limit))
+        {
+            results.Add(item);
+        }
+
+        return results;
+    }
+}

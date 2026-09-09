@@ -1,0 +1,9 @@
+{
+  // 壊れたパターン1：タグの括弧欠落
+  "id": "missing-paren",
+  "dataset": {
+    "elements": [
+      { "tag": "0010,0020)", "vr": "LO", "vm": "1", "source": "db:StablePatientId" }
+    ]
+  }
+}

@@ -1,0 +1,65 @@
+{
+  // 出荷時既定。現場では編集しない。編集するのは BMD_HOLOGIC 等の個別プロファイルだけ。
+  "schemaVersion": 1,
+  "id": "_base",
+  "description": "全プロファイル共通の既定値",
+
+  "network": {
+    "aeTitle": "ASCUBE_MWM",
+    "port": 11112,
+    "acceptedTransferSyntaxes": [
+      "1.2.840.10008.1.2",    // Implicit VR Little Endian
+      "1.2.840.10008.1.2.1",  // Explicit VR Little Endian
+      "1.2.840.10008.1.2.2"   // Explicit VR Big Endian
+    ],
+    "callingAeMatching": "ignore" // strict | logOnly | ignore
+  },
+
+  "matching": {
+    "modalityMatching": "ignore", // strict | lenient | ignore（APEX の Modality 既定は None）
+    "maxResults": 1                // 1人モデルでは1固定
+  },
+
+  "visibility": {
+    "mode": "current-only",  // 固定値。他のモードは無い（規則16）
+    "currentTtlMinutes": 15
+  },
+
+  "charset": {
+    "specificCharacterSet": "ISO_IR 192",
+    "patientName": {
+      "group1": "kanaFull", // none | kanaHalf | kanaFull
+      "group2": "kanji",    // none | kanji
+      "group3": "kanaFull"  // none | kanaHalf | kanaFull
+    }
+  },
+
+  "dataset": {
+    "elements": [
+      { "tag": "(0010,0010)", "vr": "PN", "vm": "1", "source": "auto:patientName", "required": true, "onMissing": "reject-item" },
+      { "tag": "(0010,0020)", "vr": "LO", "vm": "1", "source": "db:StablePatientId", "required": true, "onMissing": "reject-item", "maxLength": 64 },
+      { "tag": "(0010,0030)", "vr": "DA", "vm": "1", "source": "db:BirthDate", "required": false, "onMissing": "empty" },
+      { "tag": "(0010,0040)", "vr": "CS", "vm": "1", "source": "auto:patientSex", "required": false, "onMissing": "empty" },
+      { "tag": "(0010,1020)", "vr": "DS", "vm": "1", "source": "db:PatientSizeM", "required": false, "onMissing": "omit" },
+      { "tag": "(0010,1030)", "vr": "DS", "vm": "1", "source": "db:PatientWeightKg", "required": false, "onMissing": "omit" },
+      { "tag": "(0020,000D)", "vr": "UI", "vm": "1", "source": "uid:study", "required": true, "onMissing": "reject-item" },
+      { "tag": "(0008,0050)", "vr": "SH", "vm": "1", "source": "db:AccessionNumber", "required": false, "onMissing": "empty", "maxLength": 16 },
+      { "tag": "(0040,1001)", "vr": "SH", "vm": "1", "source": "db:RequestedProcedureId", "required": false, "onMissing": "empty" },
+      { "tag": "(0032,1060)", "vr": "LO", "vm": "1", "source": "db:RequestedProcedureDesc", "required": false, "onMissing": "empty" },
+      {
+        "tag": "(0040,0100)", "vr": "SQ", "required": true, "onMissing": "reject-item",
+        "items": [
+          {
+            "elements": [
+              { "tag": "(0008,0060)", "vr": "CS", "vm": "1", "source": "const:", "required": false, "onMissing": "empty" },
+              { "tag": "(0040,0001)", "vr": "AE", "vm": "1", "source": "const:ASCUBE_MWM", "required": false, "onMissing": "empty" },
+              { "tag": "(0040,0002)", "vr": "DA", "vm": "1", "source": "db:ScheduledDate", "required": true, "onMissing": "reject-item" },
+              { "tag": "(0040,0003)", "vr": "TM", "vm": "1", "source": "const:", "required": false, "onMissing": "empty" },
+              { "tag": "(0040,0007)", "vr": "LO", "vm": "1", "source": "db:RequestedProcedureDesc", "required": false, "onMissing": "empty" }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

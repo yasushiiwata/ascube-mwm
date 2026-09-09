@@ -1,0 +1,20 @@
+{
+  // Hologic APEX 5.6（骨塩定量装置・駅前）。
+  // 案①（初期値）: ISO_IR 192（UTF-8）／PN 第1群＝全角カナ、第2群＝漢字、第3群＝全角カナ。
+  "schemaVersion": 1,
+  "id": "BMD_HOLOGIC",
+  "description": "Hologic APEX 5.6（骨塩定量装置・駅前）— 案①（初期値）: ISO_IR 192 / PN第1群=全角カナ",
+
+  "network": {
+    "aeTitle": "ASCUBE_MWM"
+  },
+
+  "charset": {
+    "specificCharacterSet": "ISO_IR 192",
+    "patientName": {
+      "group1": "kanaFull",
+      "group2": "kanji",
+      "group3": "kanaFull"
+    }
+  }
+}

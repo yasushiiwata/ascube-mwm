@@ -1,0 +1,11 @@
+{
+  // T14（横展開検証用）の枠のみ。第2弾・内視鏡想定。
+  // コード変更ゼロで findscu -k Modality=ES が引けることを T14 で確認する。中身は T14 で詰める。
+  "schemaVersion": 1,
+  "id": "ES_DEFAULT",
+  "description": "内視鏡（架空・横展開検証用）の枠のみ",
+
+  "network": {
+    "aeTitle": "ASCUBE_ES"
+  }
+}

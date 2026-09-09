@@ -1,0 +1,5 @@
+{
+  // 壊れたパターン5：不正な charset（DICOM の定義語として存在しない）
+  "id": "invalid-charset",
+  "charset": { "specificCharacterSet": "SHIFT_JIS" }
+}

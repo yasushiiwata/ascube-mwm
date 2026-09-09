@@ -1,0 +1,9 @@
+{
+  // 壊れたパターン2：DICOM辞書に存在しない未知タグ
+  "id": "unknown-tag",
+  "dataset": {
+    "elements": [
+      { "tag": "(0009,0001)", "vr": "LO", "vm": "1", "source": "const:x" }
+    ]
+  }
+}

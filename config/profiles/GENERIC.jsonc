@@ -1,0 +1,10 @@
+{
+  // 施設非依存の汎用プロファイル。_base の既定値をそのまま使う（動作確認・雛形用）。
+  "schemaVersion": 1,
+  "id": "GENERIC",
+  "description": "汎用プロファイル（_base の既定値のみ）",
+
+  "network": {
+    "aeTitle": "ASCUBE_MWM"
+  }
+}

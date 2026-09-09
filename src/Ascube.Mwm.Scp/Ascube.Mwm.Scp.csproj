@@ -1,0 +1,12 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Ascube.Mwm.Core\Ascube.Mwm.Core.csproj" />
+    <ProjectReference Include="..\Ascube.Mwm.Store\Ascube.Mwm.Store.csproj" />
+  </ItemGroup>
+
+</Project>

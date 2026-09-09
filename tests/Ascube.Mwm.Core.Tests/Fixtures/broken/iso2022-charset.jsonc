@@ -1,0 +1,6 @@
+{
+  // 壊れたパターン6：ISO 2022 を含む charset（規則15で禁止。DICOM の定義語としては存在する点が
+  // invalid-charset.jsonc との違い＝別々の検証チェックで捕まえる）
+  "id": "iso2022-charset",
+  "charset": { "specificCharacterSet": "ISO 2022 IR 87" }
+}
