@@ -4,7 +4,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="fo-dicom" Version="5.2.6" />
-    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.12" />
     <PackageVersion Include="Serilog" Version="4.3.0" />
     <PackageVersion Include="Serilog.Sinks.File" Version="6.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
