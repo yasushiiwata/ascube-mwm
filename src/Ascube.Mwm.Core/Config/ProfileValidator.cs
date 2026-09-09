@@ -51,6 +51,14 @@ public static partial class ProfileValidator
     private static readonly HashSet<string> KnownAeMatchingModes = new(StringComparer.Ordinal) { "strict", "logOnly", "ignore" };
     private static readonly HashSet<string> KnownModalityMatchingModes = new(StringComparer.Ordinal) { "strict", "lenient", "ignore" };
 
+    // 規則9：この3種以外は accept してはならない（Implicit VR LE / Explicit VR LE / Explicit VR BE）。
+    private static readonly HashSet<string> KnownTransferSyntaxUids = new(StringComparer.Ordinal)
+    {
+        "1.2.840.10008.1.2",
+        "1.2.840.10008.1.2.1",
+        "1.2.840.10008.1.2.2",
+    };
+
     [GeneratedRegex(@"^\(([0-9A-Fa-f]{4}),([0-9A-Fa-f]{4})\)$")]
     private static partial Regex TagPattern();
 
@@ -365,11 +373,59 @@ public static partial class ProfileValidator
             }
         }
 
-        if (profile["network"] is JsonObject network
-            && network["callingAeMatching"]?.GetValue<string>() is { } callingAeMatching
-            && !KnownAeMatchingModes.Contains(callingAeMatching))
+        if (profile["network"] is JsonObject network)
+        {
+            ValidateNetwork(network, issues);
+        }
+    }
+
+    private static void ValidateNetwork(JsonObject network, List<ValidationIssue> issues)
+    {
+        var callingAeMatching = network["callingAeMatching"]?.GetValue<string>();
+        if (callingAeMatching is not null && !KnownAeMatchingModes.Contains(callingAeMatching))
         {
             issues.Add(new ValidationIssue("$.network.callingAeMatching", $"未知の callingAeMatching です（strict/logOnly/ignore のいずれか）: {callingAeMatching}"));
+        }
+
+        if (network["aeTitle"]?.GetValue<string>() is { } aeTitle)
+        {
+            if (aeTitle.Length is 0 or > 16)
+            {
+                issues.Add(new ValidationIssue("$.network.aeTitle", $"aeTitle は1〜16文字である必要があります（DICOM AE Title）: \"{aeTitle}\"（{aeTitle.Length}文字）"));
+            }
+        }
+
+        if (network["acceptedTransferSyntaxes"] is JsonArray tsArray)
+        {
+            for (var i = 0; i < tsArray.Count; i++)
+            {
+                var uid = tsArray[i]?.GetValue<string>();
+                if (uid is null || !KnownTransferSyntaxUids.Contains(uid))
+                {
+                    issues.Add(new ValidationIssue($"$.network.acceptedTransferSyntaxes[{i}]", $"規則9で accept してよいのは Implicit VR LE(1.2.840.10008.1.2) / Explicit VR LE(1.2.840.10008.1.2.1) / Explicit VR BE(1.2.840.10008.1.2.2) のみです: {uid}"));
+                }
+            }
+        }
+
+        if (network["allowedCallingAeTitles"] is JsonArray aeArray)
+        {
+            for (var i = 0; i < aeArray.Count; i++)
+            {
+                var v = aeArray[i]?.GetValue<string>();
+                if (string.IsNullOrEmpty(v) || v.Length > 16)
+                {
+                    issues.Add(new ValidationIssue($"$.network.allowedCallingAeTitles[{i}]", $"AE Title は1〜16文字である必要があります: \"{v}\""));
+                }
+            }
+        }
+
+        if (callingAeMatching is "strict" or "logOnly")
+        {
+            var allowedCount = (network["allowedCallingAeTitles"] as JsonArray)?.Count ?? 0;
+            if (allowedCount == 0)
+            {
+                issues.Add(new ValidationIssue("$.network.allowedCallingAeTitles", $"callingAeMatching=\"{callingAeMatching}\" では allowedCallingAeTitles に1件以上指定する必要があります（規則8・規則10：現場の1文字ミスで検査停止させないため、空リストのまま strict/logOnly を有効化させない）"));
+            }
         }
     }
 }
