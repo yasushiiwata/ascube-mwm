@@ -1,0 +1,20 @@
+{
+  // 案④（当日の切り札2。旧 alt3 を繰り上げ）: ISO_IR 13 単独 / 半角カナのみ・漢字を送らない。
+  // ⚠ ISO 2022 案（旧 alt2 = 案③）は作らない（規則15）。ファイル名の番号がずれている点に注意。
+  "schemaVersion": 1,
+  "id": "BMD_HOLOGIC.alt2",
+  "description": "Hologic APEX 5.6 — 案④（切り札2）: ISO_IR 13 単独 / 半角カナのみ・漢字を送らない",
+
+  "network": {
+    "aeTitle": "ASCUBE_MWM"
+  },
+
+  "charset": {
+    "specificCharacterSet": "ISO_IR 13",
+    "patientName": {
+      "group1": "kanaHalf",
+      "group2": "none",
+      "group3": "none"
+    }
+  }
+}

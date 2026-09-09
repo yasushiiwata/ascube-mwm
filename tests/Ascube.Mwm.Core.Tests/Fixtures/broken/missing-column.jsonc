@@ -1,0 +1,9 @@
+{
+  // 壊れたパターン4：db: が参照する列が実在しない
+  "id": "missing-column",
+  "dataset": {
+    "elements": [
+      { "tag": "(0010,0020)", "vr": "LO", "vm": "1", "source": "db:NoSuchColumn" }
+    ]
+  }
+}

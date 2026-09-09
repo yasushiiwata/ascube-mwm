@@ -1,0 +1,9 @@
+{
+  // 壊れたパターン3：VR誤り（PatientID の実際の VR は LO であって SH ではない）
+  "id": "wrong-vr",
+  "dataset": {
+    "elements": [
+      { "tag": "(0010,0020)", "vr": "SH", "vm": "1", "source": "db:StablePatientId" }
+    ]
+  }
+}

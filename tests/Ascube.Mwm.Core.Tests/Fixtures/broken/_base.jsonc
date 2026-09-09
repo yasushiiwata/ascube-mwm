@@ -1,0 +1,8 @@
+{
+  // 壊れたプロファイルのテスト用フィクスチャ共通土台。config/profiles/_base.jsonc とは別物。
+  "schemaVersion": 1,
+  "network": { "aeTitle": "TEST", "port": 11112, "callingAeMatching": "ignore" },
+  "matching": { "modalityMatching": "ignore", "maxResults": 1 },
+  "visibility": { "mode": "current-only", "currentTtlMinutes": 15 },
+  "charset": { "specificCharacterSet": "ISO_IR 192" }
+}

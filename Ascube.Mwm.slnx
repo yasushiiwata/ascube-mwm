@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Ascube.Mwm.Abstractions/Ascube.Mwm.Abstractions.csproj" />
+    <Project Path="src/Ascube.Mwm.Core/Ascube.Mwm.Core.csproj" />
+    <Project Path="src/Ascube.Mwm.Scp/Ascube.Mwm.Scp.csproj" />
+    <Project Path="src/Ascube.Mwm.Store/Ascube.Mwm.Store.csproj" />
+    <Project Path="src/Ascube.Mwm.Tools/Ascube.Mwm.Tools.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Ascube.Mwm.Core.Tests/Ascube.Mwm.Core.Tests.csproj" />
+    <Project Path="tests/Ascube.Mwm.Scp.Tests/Ascube.Mwm.Scp.Tests.csproj" />
+    <Project Path="tests/Ascube.Mwm.Store.Tests/Ascube.Mwm.Store.Tests.csproj" />
+  </Folder>
+</Solution>
