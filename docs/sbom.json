@@ -1,0 +1,87 @@
+{
+  "$comment": "ascube-mwm SBOM（CLAUDE.md 規則13：依存パッケージは版を固定する。リリースごとにこのファイルとdocs/THIRD-PARTY-NOTICES.txtを更新する）。dotnet list package --include-transitive の出力（net10.0, 2026-09-11）から作成。Directory.Packages.propsで一元管理。",
+  "generatedAt": "2026-09-11",
+  "generatedFrom": {
+    "command": "dotnet list <project>.csproj package --include-transitive",
+    "targetFramework": "net10.0",
+    "dotnetSdkVersion": "10.0.400"
+  },
+  "shippedProjects": [
+    {
+      "project": "Ascube.Mwm.Scp",
+      "executable": "mwm-scp",
+      "description": "DICOM MWM SCP 本体（Windowsサービスまたはコンソール）。fo-dicomを含む。実機で常時稼働する。"
+    },
+    {
+      "project": "Ascube.Mwm.Tools",
+      "executable": "mwm-admin / mwm-scu",
+      "description": "現地・運用で使うCLI（scu echo/find/preview/replay, admin validate/explain-query/health/export-support-bundle）。fo-dicomを含む。"
+    }
+  ],
+  "notShipped": [
+    {
+      "project": "Ascube.Mwm.Abstractions",
+      "note": "BRIDGE-Navi本体が参照する契約のみ。外部NuGet依存なし（純C#）。"
+    },
+    {
+      "project": "Ascube.Mwm.Store",
+      "note": "BRIDGE-Navi本体が参照。Microsoft.Data.Sqlite系に依存（下記packagesに含む）。単体では実行ファイルを生成しない。"
+    },
+    {
+      "project": "Ascube.Mwm.Core",
+      "note": "SCP内部で使用。単体では実行ファイルを生成しない。"
+    }
+  ],
+  "packages": [
+    { "name": "fo-dicom", "requestedVersion": "5.2.6", "resolvedVersions": { "Ascube.Mwm.Scp": "5.2.6", "Ascube.Mwm.Tools": "5.2.6" }, "license": "MS-PL", "directIn": ["Ascube.Mwm.Scp", "Ascube.Mwm.Tools"], "notes": "本体規則11：fork・改変しない。NuGet参照のまま使用。" },
+    { "name": "Microsoft.Extensions.Hosting", "requestedVersion": "10.0.0", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.0" }, "license": "MIT", "directIn": ["Ascube.Mwm.Scp"] },
+    { "name": "Microsoft.Extensions.Hosting.WindowsServices", "requestedVersion": "10.0.0", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.0" }, "license": "MIT", "directIn": ["Ascube.Mwm.Scp"] },
+    { "name": "Microsoft.Extensions.DependencyInjection", "requestedVersion": "10.0.0", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.0", "Ascube.Mwm.Tools": "10.0.0" }, "license": "MIT", "directIn": ["Ascube.Mwm.Scp", "Ascube.Mwm.Tools"] },
+    { "name": "Microsoft.Extensions.DependencyInjection.Abstractions", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.0", "Ascube.Mwm.Tools": "10.0.0" }, "license": "MIT", "directIn": [] },
+    { "name": "Microsoft.Extensions.Configuration", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.0" }, "license": "MIT", "directIn": [] },
+    { "name": "Microsoft.Extensions.Configuration.Abstractions", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.0", "Ascube.Mwm.Tools": "8.0.0" }, "license": "MIT", "directIn": [] },
+    { "name": "Microsoft.Extensions.Configuration.Binder", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.0", "Ascube.Mwm.Tools": "8.0.2" }, "license": "MIT", "directIn": [] },
+    { "name": "Microsoft.Extensions.Configuration.CommandLine", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.0" }, "license": "MIT", "directIn": [] },
+    { "name": "Microsoft.Extensions.Configuration.EnvironmentVariables", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.0" }, "license": "MIT", "directIn": [] },
+    { "name": "Microsoft.Extensions.Configuration.FileExtensions", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.0" }, "license": "MIT", "directIn": [] },
+    { "name": "Microsoft.Extensions.Configuration.Json", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.0" }, "license": "MIT", "directIn": [] },
+    { "name": "Microsoft.Extensions.Configuration.UserSecrets", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.0" }, "license": "MIT", "directIn": [] },
+    { "name": "Microsoft.Extensions.Diagnostics", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.0" }, "license": "MIT", "directIn": [] },
+    { "name": "Microsoft.Extensions.Diagnostics.Abstractions", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.0" }, "license": "MIT", "directIn": [] },
+    { "name": "Microsoft.Extensions.FileProviders.Abstractions", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.0" }, "license": "MIT", "directIn": [] },
+    { "name": "Microsoft.Extensions.FileProviders.Physical", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.0" }, "license": "MIT", "directIn": [] },
+    { "name": "Microsoft.Extensions.FileSystemGlobbing", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.0" }, "license": "MIT", "directIn": [] },
+    { "name": "Microsoft.Extensions.Hosting.Abstractions", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.0" }, "license": "MIT", "directIn": [] },
+    { "name": "Microsoft.Extensions.Logging", "requestedVersion": "10.0.0", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.0", "Ascube.Mwm.Tools": "8.0.1" }, "license": "MIT", "directIn": ["Ascube.Mwm.Scp"], "notes": "Tools側はfo-dicomの推移的要求で8.0.1に解決される（Hostingを参照しないため）。実害なし（binding redirectで解決）。" },
+    { "name": "Microsoft.Extensions.Logging.Abstractions", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.0", "Ascube.Mwm.Tools": "8.0.2" }, "license": "MIT", "directIn": [] },
+    { "name": "Microsoft.Extensions.Logging.Configuration", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.0" }, "license": "MIT", "directIn": [] },
+    { "name": "Microsoft.Extensions.Logging.Console", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.0" }, "license": "MIT", "directIn": [] },
+    { "name": "Microsoft.Extensions.Logging.Debug", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.0" }, "license": "MIT", "directIn": [] },
+    { "name": "Microsoft.Extensions.Logging.EventLog", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.0" }, "license": "MIT", "directIn": [] },
+    { "name": "Microsoft.Extensions.Logging.EventSource", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.0" }, "license": "MIT", "directIn": [] },
+    { "name": "Microsoft.Extensions.Options", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.0", "Ascube.Mwm.Tools": "8.0.2" }, "license": "MIT", "directIn": [] },
+    { "name": "Microsoft.Extensions.Options.ConfigurationExtensions", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.0", "Ascube.Mwm.Tools": "8.0.0" }, "license": "MIT", "directIn": [] },
+    { "name": "Microsoft.Extensions.Primitives", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.0", "Ascube.Mwm.Tools": "8.0.0" }, "license": "MIT", "directIn": [] },
+    { "name": "Microsoft.Data.Sqlite", "requestedVersion": "10.0.12", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.12", "Ascube.Mwm.Tools": "10.0.12" }, "license": "MIT", "directIn": [] },
+    { "name": "Microsoft.Data.Sqlite.Core", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.12", "Ascube.Mwm.Tools": "10.0.12" }, "license": "MIT", "directIn": [] },
+    { "name": "Microsoft.Bcl.AsyncInterfaces", "resolvedVersions": { "Ascube.Mwm.Scp": "8.0.0", "Ascube.Mwm.Tools": "8.0.0" }, "license": "MIT", "directIn": [] },
+    { "name": "Microsoft.Bcl.HashCode", "resolvedVersions": { "Ascube.Mwm.Scp": "6.0.0", "Ascube.Mwm.Tools": "6.0.0" }, "license": "MIT", "directIn": [] },
+    { "name": "CommunityToolkit.HighPerformance", "resolvedVersions": { "Ascube.Mwm.Scp": "8.4.0", "Ascube.Mwm.Tools": "8.4.0" }, "license": "MIT", "directIn": [], "notes": "fo-dicomの推移的依存。" },
+    { "name": "SQLitePCLRaw.bundle_e_sqlite3", "resolvedVersions": { "Ascube.Mwm.Scp": "2.1.12", "Ascube.Mwm.Tools": "2.1.12" }, "license": "Apache-2.0", "directIn": [] },
+    { "name": "SQLitePCLRaw.core", "resolvedVersions": { "Ascube.Mwm.Scp": "2.1.12", "Ascube.Mwm.Tools": "2.1.12" }, "license": "Apache-2.0", "directIn": [] },
+    { "name": "SQLitePCLRaw.lib.e_sqlite3", "resolvedVersions": { "Ascube.Mwm.Scp": "2.1.12", "Ascube.Mwm.Tools": "2.1.12" }, "license": "Apache-2.0", "directIn": [] },
+    { "name": "SQLitePCLRaw.provider.e_sqlite3", "resolvedVersions": { "Ascube.Mwm.Scp": "2.1.12", "Ascube.Mwm.Tools": "2.1.12" }, "license": "Apache-2.0", "directIn": [] },
+    { "name": "System.Diagnostics.EventLog", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.0" }, "license": "MIT", "directIn": [] },
+    { "name": "System.ServiceProcess.ServiceController", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.0" }, "license": "MIT", "directIn": [] },
+    { "name": "System.Text.Encoding.CodePages", "requestedVersion": "10.0.0", "resolvedVersions": { "Ascube.Mwm.Scp": "10.0.0", "Ascube.Mwm.Tools": "10.0.0", "Ascube.Mwm.Core": "10.0.0" }, "license": "MIT", "directIn": ["Ascube.Mwm.Core"], "notes": "CP932/半角カナ処理に必須（CLAUDE.md：起動時にEncoding.RegisterProviderを呼ぶ）。" }
+  ],
+  "pinnedButNotReferenced": [
+    { "name": "Serilog", "requestedVersion": "4.3.0", "license": "Apache-2.0", "notes": "Directory.Packages.propsで版だけ固定。どのcsprojからも現在参照されていない（T3で配線を見送り。Microsoft.Extensions.Logging標準コンソールログで規則の要求を満たしている）。将来ファイル出力を配線する場合に使う想定。" },
+    { "name": "Serilog.Sinks.File", "requestedVersion": "6.0.0", "license": "Apache-2.0", "notes": "上記と同じ理由で未参照。" }
+  ],
+  "testOnlyPackages": [
+    { "name": "Microsoft.NET.Test.Sdk", "requestedVersion": "17.12.0", "license": "MIT", "notes": "テストプロジェクトのみ。出荷物には含まれない。" },
+    { "name": "xunit", "requestedVersion": "2.9.2", "license": "Apache-2.0", "notes": "同上。" },
+    { "name": "xunit.runner.visualstudio", "requestedVersion": "2.8.2", "license": "MIT", "notes": "同上。" }
+  ]
+}
