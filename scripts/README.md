@@ -1,5 +1,35 @@
 # scripts/
 
+## 9/28 現地接続テストで使う運用スクリプト一覧（T12）
+
+すべて `-ToolsExe <mwm-admin.exeのパス>` を渡せる（省略時は `dotnet run --project src/Ascube.Mwm.Tools --` で動く。開発機での動作確認用）。
+配布物（`install-service.ps1` で publish したもの）を使う場合は `-ToolsExe C:\Ascube\Mwm\...\Ascube.Mwm.Tools.exe` のように渡す。
+
+| スクリプト | 内容 |
+|---|---|
+| `00_watch.ps1` | **9/28に画面を見て真っ先に確認するもの。** 5秒間隔で「現在の受診者：あり／なし、TTL残 mm:ss」を大きく表示し続ける。 |
+| `01_health.ps1` | `admin health` を1回だけ実行（単発確認）。 |
+| `02_validate.ps1` | 現在の設定ファイルを検証する（起動前チェック・トラブル時の切り分け）。 |
+| `03_echo.ps1` | 疎通確認（C-ECHO）だけを最速で行う。 |
+| `04_find.ps1` | C-FIND を実行する。既定で `--emulate-apex-defaults`（Days Back 60 / Forward 2）を使う。 |
+| `05_explain.ps1` | 「0件です」の原因を名指しで特定する（`admin explain-query`）。9/28で一番使う可能性が高いコマンド。 |
+| `mark.bat` | `echoscu -aet MARK-STEP<N>` でpcap・生キャプチャ・監査ログに検索可能な目印を残す。使い方: `mark.bat 3` |
+| `start-capture.bat` | dumpcap（別途インストールが必要。同梱しない）でのリングバッファpcapキャプチャ開始。 |
+| `collect-evidence.ps1` | 証跡一式（プロファイル・直近監査ログ・T9生キャプチャ・pcap）を1フォルダにまとめる。 |
+| `install-service.ps1` | Windows サービスとしてインストールする（要管理者権限。自動起動・異常終了時の自動復帰を設定）。 |
+| `rollback.ps1` | `install-service.ps1` 実行前の状態へ戻す（要管理者権限。5分以内が目標）。 |
+
+`install-service.ps1` / `rollback.ps1` はシステムへの変更（サービス登録・ACL）を伴うため、
+このリポジトリの開発セッションでは自動実行していない。実機での実行前に内容を必ず確認すること。
+
+### 00_watch.ps1 使用時の注意（文字化け）
+
+`00_watch.ps1` は `mwm-admin` の出力を一度 PowerShell の変数に取り込んで判定するため、
+Windows PowerShell 5.1 の既定エンコーディングのままだと日本語が文字化けして
+「現在の受診者：あり」の判定を誤ることがある。このスクリプトは起動時に
+`[Console]::OutputEncoding = [System.Text.Encoding]::UTF8` を設定して対処済み。
+他のスクリプト（01〜05, mark.bat）は出力をそのまま素通しするだけなのでこの問題は起きない。
+
 ## switch-charset.ps1（T10：ホットリロードによる文字コード切替）
 
 稼働中の `mwm-scp` を**止めずに**、文字コード案①／②／④を切り替える。9/28 現地接続テストで、
