@@ -9,12 +9,14 @@ using Microsoft.Extensions.Logging;
 namespace Ascube.Mwm.Scp;
 
 /// <summary>
-/// 検証済みプロファイル一覧からポートごとに <see cref="MwmDicomService"/> の DicomServer を起動する。
+/// 起動時のプロファイル一覧からポートごとに <see cref="MwmDicomService"/> の DicomServer を起動する。
 /// 同じポートを共有する複数プロファイルは1つの DicomServer にまとめ、Called AE Title で解決する。
+/// ポート構成（どのポートで待受するか）は起動時に固定（T10 のホットリロードは中身の差し替えのみ。
+/// network.port を変えても待受ポート自体は変わらない）。
 /// </summary>
 public sealed class ScpHostedService(
     IDicomServerFactory serverFactory,
-    IReadOnlyList<DeviceProfile> profiles,
+    LiveProfileRegistry profileRegistry,
     IWorklistRepository repository,
     IAuditWriter auditWriter,
     ILogger<ScpHostedService> logger) : IHostedService
@@ -23,9 +25,15 @@ public sealed class ScpHostedService(
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        foreach (var group in profiles.GroupBy(p => p.Port))
+        foreach (var group in profileRegistry.Current.GroupBy(p => p.Port))
         {
-            var routing = new ScpRoutingContext { Profiles = group.ToArray(), Repository = repository, AuditWriter = auditWriter };
+            var routing = new ScpRoutingContext
+            {
+                ProfileRegistry = profileRegistry,
+                Port = group.Key,
+                Repository = repository,
+                AuditWriter = auditWriter,
+            };
             var server = serverFactory.Create<MwmDicomService>(group.Key, userState: routing, logger: logger);
             _servers.Add(server);
 
