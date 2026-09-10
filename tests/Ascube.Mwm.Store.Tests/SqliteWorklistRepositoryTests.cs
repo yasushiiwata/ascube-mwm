@@ -204,6 +204,93 @@ public class SqliteWorklistRepositoryTests
         Assert.Contains("000012345678", result.Reason);
     }
 
+    [Fact]
+    public async Task GetCurrentStatusAsync_NoCurrentEntry_ReportsNotExists()
+    {
+        using var db = new TestDatabase();
+        _ = new SqliteWorklistWriter(db.Options());
+        var repository = new SqliteWorklistRepository(db.Options());
+
+        var status = await repository.GetCurrentStatusAsync();
+
+        Assert.False(status.Exists);
+        Assert.False(status.IsAlive);
+    }
+
+    [Fact]
+    public async Task GetCurrentStatusAsync_LiveEntry_ReportsExistsAndAlive()
+    {
+        using var db = new TestDatabase();
+        var writer = new SqliteWorklistWriter(db.Options());
+        await writer.SetCurrentAsync(MakeEntry());
+        var repository = new SqliteWorklistRepository(db.Options());
+
+        var status = await repository.GetCurrentStatusAsync();
+
+        Assert.True(status.Exists);
+        Assert.True(status.IsAlive);
+        Assert.NotNull(status.ExpiresAtUtc);
+    }
+
+    [Fact]
+    public async Task GetCurrentStatusAsync_ExpiredEntry_ReportsExistsButNotAlive()
+    {
+        using var db = new TestDatabase();
+        var time = new ManualTimeProvider(new DateTimeOffset(2026, 9, 28, 9, 0, 0, TimeSpan.Zero));
+        var writer = new SqliteWorklistWriter(db.Options(currentTtl: TimeSpan.FromMinutes(15)), time);
+        await writer.SetCurrentAsync(MakeEntry());
+        time.Advance(TimeSpan.FromMinutes(20));
+        var repository = new SqliteWorklistRepository(db.Options(currentTtl: TimeSpan.FromMinutes(15)), time);
+
+        var status = await repository.GetCurrentStatusAsync();
+
+        Assert.True(status.Exists);
+        Assert.False(status.IsAlive);
+    }
+
+    [Fact]
+    public async Task GetLatestByPatientIdAsync_KnownPatient_ReturnsWorkItem()
+    {
+        using var db = new TestDatabase();
+        var writer = new SqliteWorklistWriter(db.Options());
+        await writer.SetCurrentAsync(MakeEntry());
+        var repository = new SqliteWorklistRepository(db.Options());
+
+        var view = await repository.GetLatestByPatientIdAsync("000012345678");
+
+        Assert.NotNull(view);
+        Assert.Equal("武田", view!.FamilyNameKanji);
+        Assert.Matches(@"^2\.25\.\d{1,39}$", view.StudyInstanceUid);
+    }
+
+    [Fact]
+    public async Task GetLatestByPatientIdAsync_AfterClearCurrent_StillReturnsHistoricalWorkItem()
+    {
+        // ClearCurrentAsync は「今の1人」を消すだけで、WorkItem の履歴は残る（mwm-scu preview は履歴から引く）。
+        using var db = new TestDatabase();
+        var writer = new SqliteWorklistWriter(db.Options());
+        await writer.SetCurrentAsync(MakeEntry());
+        await writer.ClearCurrentAsync();
+        var repository = new SqliteWorklistRepository(db.Options());
+
+        var view = await repository.GetLatestByPatientIdAsync("000012345678");
+
+        Assert.NotNull(view);
+    }
+
+    [Fact]
+    public async Task GetLatestByPatientIdAsync_UnknownPatient_ReturnsNull()
+    {
+        using var db = new TestDatabase();
+        var writer = new SqliteWorklistWriter(db.Options());
+        await writer.SetCurrentAsync(MakeEntry());
+        var repository = new SqliteWorklistRepository(db.Options());
+
+        var view = await repository.GetLatestByPatientIdAsync("999999999999");
+
+        Assert.Null(view);
+    }
+
     private static async Task<List<WorkItemView>> CollectAsync(SqliteWorklistRepository repository, int limit = 10, QueryCriteria? criteria = null)
     {
         var results = new List<WorkItemView>();

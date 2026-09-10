@@ -87,6 +87,75 @@ public sealed class SqliteWorklistRepository : IWorklistRepository
         _ => "0件です（詳細不明）",
     };
 
+    /// <summary>admin health（T11）専用：CurrentEntry の有無とTTLだけを軽量に見る。</summary>
+    public async Task<CurrentEntryStatus> GetCurrentStatusAsync(CancellationToken ct = default)
+    {
+        await using var connection = await OpenAsync(ct);
+        var row = await CurrentEntryQuery.LoadAsync(connection, transaction: null, ct);
+
+        if (row is null)
+        {
+            return new CurrentEntryStatus(Exists: false, IsAlive: false, SetAtUtc: null, ExpiresAtUtc: null);
+        }
+
+        var isAlive = row.ExpiresAtUtc > _timeProvider.GetUtcNow();
+        return new CurrentEntryStatus(Exists: true, IsAlive: isAlive, SetAtUtc: row.SetAtUtc, ExpiresAtUtc: row.ExpiresAtUtc);
+    }
+
+    /// <summary>
+    /// mwm-scu preview（T11）専用：StablePatientId で WorkItem の履歴から最新の1件を引く
+    /// （CurrentEntry を問わない。装置なしでの動作確認用）。無ければ null。
+    /// </summary>
+    public async Task<WorkItemView?> GetLatestByPatientIdAsync(string stablePatientId, CancellationToken ct = default)
+    {
+        await using var connection = await OpenAsync(ct);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT w.WorkItemId, w.StablePatientId, p.FamilyNameKanji, p.GivenNameKanji, p.FamilyNameKana, p.GivenNameKana,
+                   p.BirthDate, p.Sex, w.ScheduledDate, w.AccessionNumber, w.RequestedProcedureId, w.RequestedProcedureDesc,
+                   w.PatientSizeM, w.PatientWeightKg, w.SourceMessageId, u.StudyInstanceUid
+            FROM WorkItem w
+            JOIN Patient p ON p.StablePatientId = w.StablePatientId
+            LEFT JOIN UidAllocation u ON u.WorkItemId = w.WorkItemId
+            WHERE w.StablePatientId = $pid
+            ORDER BY w.UpdatedAtUtc DESC
+            LIMIT 1;
+            """;
+        command.Parameters.AddWithValue("$pid", stablePatientId);
+
+        await using var reader = await command.ExecuteReaderAsync(ct);
+        if (!await reader.ReadAsync(ct))
+        {
+            return null;
+        }
+
+        var studyInstanceUid = reader.IsDBNull(15) ? null : reader.GetString(15);
+        if (studyInstanceUid is null)
+        {
+            return null; // UID未採番（通常起こらない）
+        }
+
+        return new WorkItemView
+        {
+            WorkItemId = reader.GetString(0),
+            StablePatientId = reader.GetString(1),
+            FamilyNameKanji = reader.IsDBNull(2) ? null : reader.GetString(2),
+            GivenNameKanji = reader.IsDBNull(3) ? null : reader.GetString(3),
+            FamilyNameKana = reader.IsDBNull(4) ? null : reader.GetString(4),
+            GivenNameKana = reader.IsDBNull(5) ? null : reader.GetString(5),
+            BirthDate = reader.IsDBNull(6) ? null : reader.GetString(6),
+            Sex = (Sex)reader.GetInt64(7),
+            ScheduledDate = reader.GetString(8),
+            AccessionNumber = reader.IsDBNull(9) ? null : reader.GetString(9),
+            RequestedProcedureId = reader.IsDBNull(10) ? null : reader.GetString(10),
+            RequestedProcedureDesc = reader.IsDBNull(11) ? null : reader.GetString(11),
+            PatientSizeM = reader.IsDBNull(12) ? null : reader.GetDouble(12),
+            PatientWeightKg = reader.IsDBNull(13) ? null : reader.GetDouble(13),
+            SourceMessageId = reader.IsDBNull(14) ? null : reader.GetString(14),
+            StudyInstanceUid = studyInstanceUid,
+        };
+    }
+
     private async Task<WorkItemView?> TryGetLiveViewAsync(CancellationToken ct)
     {
         await using var connection = await OpenAsync(ct);

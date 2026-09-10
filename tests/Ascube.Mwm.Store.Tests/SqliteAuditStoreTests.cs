@@ -23,6 +23,31 @@ public class SqliteAuditStoreTests
     };
 
     [Fact]
+    public async Task GetLatestCFindAsync_NoRecords_ReturnsNull()
+    {
+        using var db = new TestAuditDatabase();
+        var store = new SqliteAuditStore(db.Options());
+
+        Assert.Null(await store.GetLatestCFindAsync());
+    }
+
+    [Fact]
+    public async Task GetLatestCFindAsync_ReturnsTheMostRecentlyInsertedRun()
+    {
+        using var db = new TestAuditDatabase();
+        var store = new SqliteAuditStore(db.Options());
+
+        var first = await store.RecordCFindAsync(MakeRecord());
+        var second = await store.RecordCFindAsync(MakeRecord(resultCount: 0, explain: "test"));
+
+        var latest = await store.GetLatestCFindAsync();
+
+        Assert.NotNull(latest);
+        Assert.Equal(second, latest!.RunId);
+        Assert.NotEqual(first, latest.RunId);
+    }
+
+    [Fact]
     public async Task RecordCFindAsync_ReturnsAnAssignedRunId()
     {
         using var db = new TestAuditDatabase();
