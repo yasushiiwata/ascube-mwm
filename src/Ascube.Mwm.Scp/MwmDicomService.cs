@@ -2,6 +2,7 @@ using System.Linq;
 using System.Text;
 using Ascube.Mwm.Abstractions;
 using Ascube.Mwm.Core.Config;
+using Ascube.Mwm.Core.Dataset;
 using Ascube.Mwm.Core.Matching;
 using FellowOakDicom;
 using FellowOakDicom.Network;
@@ -10,10 +11,10 @@ using Microsoft.Extensions.Logging;
 namespace Ascube.Mwm.Scp;
 
 /// <summary>
-/// C-ECHO SCP ＋ アソシエーション制御（実装指示書 v2 T3）＋ C-FIND（T4 最小実装 → T5 で実データ照合）。
+/// C-ECHO SCP ＋ アソシエーション制御（実装指示書 v2 T3）＋ C-FIND（T5 実データ照合 ＋ T6 DatasetBuilder）。
 /// フロー：ルーティングでプロファイル解決 → 解決結果をログ出力 → Calling AE 照合 → PC ごとに accept/reject。
 /// C-FIND は <see cref="MatchEngine"/> で日付範囲・PatientID・PatientName・Modality を判定し、
-/// 一致した実データのみ返す。データセットの組み立ては暫定の直接マッピング（本格的な DSL 駆動は T6 DatasetBuilder）。
+/// 一致した実データを <see cref="DatasetBuilder"/>（dataset.elements DSL 駆動）で組み立てて返す。
 /// </summary>
 public sealed class MwmDicomService : DicomService, IDicomServiceProvider, IDicomCEchoProvider, IDicomCFindProvider
 {
@@ -134,9 +135,9 @@ public sealed class MwmDicomService : DicomService, IDicomServiceProvider, IDico
         => Task.FromResult(new DicomCEchoResponse(request, DicomStatus.Success));
 
     /// <summary>
-    /// T5：日付範囲・PatientID・PatientName・Modality を判定し、一致した実データのみ返す
-    /// （実装指示書 v2 T5）。1人モデルなので0件か1件。該当0件は Success かつ結果なし（規則2）。
-    /// データセットの組み立ては暫定の直接マッピング（DSL 駆動の一般化は T6 DatasetBuilder）。
+    /// T5：日付範囲・PatientID・PatientName・Modality を判定し、一致した実データのみ返す。
+    /// T6：一致した1件は <see cref="DatasetBuilder"/>（dataset.elements DSL）で組み立てる。
+    /// 1人モデルなので0件か1件。該当0件は Success かつ結果なし（規則2）。
     /// </summary>
     public async IAsyncEnumerable<DicomCFindResponse> OnCFindRequestAsync(DicomCFindRequest request)
     {
@@ -155,105 +156,20 @@ public sealed class MwmDicomService : DicomService, IDicomServiceProvider, IDico
                 continue;
             }
 
-            var dataset = TryBuildDataset(item, profile);
-            if (dataset is null)
+            var built = DatasetBuilder.Build(profile, item, request.Dataset);
+            if (built.Suppressed)
             {
-                // 規則4：患者に属する値が欠損している行は捏造せず返さない。
-                // 監査への記録（AuditCFindItem 等）は T8 で構造化する。
+                // 規則4：患者に属する値が欠損・不正な行は捏造せず返さない。
+                // 監査への構造化記録（AuditCFindItem 等）は T8 で行う。
                 Logger.LogWarning(
-                    "C-FIND: WorkItemId={WorkItemId} は PatientName が欠損しているため Suppressed（規則4）",
-                    item.WorkItemId);
+                    "C-FIND: WorkItemId={WorkItemId} は Suppressed: {Reason}",
+                    item.WorkItemId, built.SuppressedReason);
                 continue;
             }
 
-            yield return new DicomCFindResponse(request, DicomStatus.Pending) { Dataset = dataset };
+            yield return new DicomCFindResponse(request, DicomStatus.Pending) { Dataset = built.Dataset };
         }
 
         yield return new DicomCFindResponse(request, DicomStatus.Success);
     }
-
-    private static DicomDataset? TryBuildDataset(WorkItemView item, DeviceProfile profile)
-    {
-        var patientName = ComposePatientName(item);
-        if (patientName is null)
-        {
-            return null;
-        }
-
-        var dataset = new DicomDataset();
-
-        // 規則6：SpecificCharacterSet は DicomDataset に最初に設定する。
-        dataset.Add(DicomTag.SpecificCharacterSet, profile.SpecificCharacterSet);
-
-        dataset.Add(DicomTag.PatientName, patientName);
-        dataset.Add(DicomTag.PatientID, item.StablePatientId);
-        dataset.Add(DicomTag.PatientBirthDate, item.BirthDate ?? string.Empty);
-        dataset.Add(DicomTag.PatientSex, ToDicomSex(item.Sex));
-        dataset.Add(DicomTag.StudyInstanceUID, item.StudyInstanceUid);
-
-        if (item.AccessionNumber is { Length: > 0 } accessionNumber)
-        {
-            dataset.Add(DicomTag.AccessionNumber, accessionNumber);
-        }
-
-        if (item.RequestedProcedureId is { Length: > 0 } requestedProcedureId)
-        {
-            dataset.Add(DicomTag.RequestedProcedureID, requestedProcedureId);
-        }
-
-        if (item.RequestedProcedureDesc is { Length: > 0 } requestedProcedureDesc)
-        {
-            dataset.Add(DicomTag.RequestedProcedureDescription, requestedProcedureDesc);
-        }
-
-        // 規則17：当日測定していない身長・体重はタグごと省略する（前回値を今日の値として送らない）。
-        if (item.PatientSizeM is { } sizeM)
-        {
-            dataset.Add(DicomTag.PatientSize, sizeM);
-        }
-
-        if (item.PatientWeightKg is { } weightKg)
-        {
-            dataset.Add(DicomTag.PatientWeight, weightKg);
-        }
-
-        var scheduledStep = new DicomDataset
-        {
-            { DicomTag.Modality, profile.ScheduledStationModality ?? string.Empty },
-            { DicomTag.ScheduledStationAETitle, profile.AeTitle },
-            { DicomTag.ScheduledProcedureStepStartDate, item.ScheduledDate },
-        };
-
-        if (item.RequestedProcedureDesc is { Length: > 0 } spsDesc)
-        {
-            scheduledStep.Add(DicomTag.ScheduledProcedureStepDescription, spsDesc);
-        }
-
-        dataset.Add(new DicomSequence(DicomTag.ScheduledProcedureStepSequence, scheduledStep));
-
-        return dataset;
-    }
-
-    private static string? ComposePatientName(WorkItemView item)
-    {
-        if (!string.IsNullOrEmpty(item.FamilyNameKanji) || !string.IsNullOrEmpty(item.GivenNameKanji))
-        {
-            return $"{item.FamilyNameKanji}^{item.GivenNameKanji}";
-        }
-
-        if (!string.IsNullOrEmpty(item.FamilyNameKana) || !string.IsNullOrEmpty(item.GivenNameKana))
-        {
-            return $"{item.FamilyNameKana}^{item.GivenNameKana}";
-        }
-
-        return null;
-    }
-
-    private static string ToDicomSex(Sex sex) => sex switch
-    {
-        Sex.Male => "M",
-        Sex.Female => "F",
-        Sex.Other => "O",
-        _ => string.Empty,
-    };
 }
