@@ -18,6 +18,13 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Ascube.Mwm.Scp\Ascube.Mwm.Scp.csproj" />
+    <ProjectReference Include="..\..\src\Ascube.Mwm.Store\Ascube.Mwm.Store.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- T13: E-02/E-03（応答送信中の強制切断）テストで T11 の hard-close 機構を再利用する。
+         Ascube.Mwm.Tools.Tests と同じ手法（internal のまま InternalsVisibleTo 無しでリンクする）。 -->
+    <Compile Include="..\..\src\Ascube.Mwm.Tools\HardClose\SocketCapturingNetworkManager.cs" Link="HardClose\SocketCapturingNetworkManager.cs" />
   </ItemGroup>
 
 </Project>

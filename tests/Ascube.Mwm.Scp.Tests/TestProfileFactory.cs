@@ -21,7 +21,8 @@ internal static class TestProfileFactory
         string aeTitle = "ASCUBE_MWM",
         string callingAeMatching = "ignore",
         string[]? allowedCallingAeTitles = null,
-        string[]? acceptedTransferSyntaxes = null)
+        string[]? acceptedTransferSyntaxes = null,
+        JsonObject? charset = null)
     {
         var network = new JsonObject
         {
@@ -43,7 +44,7 @@ internal static class TestProfileFactory
             ["network"] = network,
             ["matching"] = new JsonObject { ["modalityMatching"] = "ignore", ["maxResults"] = 1 },
             ["visibility"] = new JsonObject { ["mode"] = "current-only", ["currentTtlMinutes"] = 15 },
-            ["charset"] = new JsonObject
+            ["charset"] = charset ?? new JsonObject
             {
                 ["specificCharacterSet"] = "ISO_IR 192",
                 ["patientName"] = new JsonObject { ["group1"] = "kanaFull", ["group2"] = "kanji", ["group3"] = "kanaFull" },
