@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Ascube.Mwm.Abstractions;
 using Ascube.Mwm.Core.Config;
+using Ascube.Mwm.Core.PatientName;
 using FellowOakDicom;
 
 namespace Ascube.Mwm.Core.Dataset;
@@ -31,7 +32,7 @@ public static partial class DatasetBuilder
                 continue;
             }
 
-            var outcome = BuildElement(element, item, requestDataset, dataset, provenance, out var rejectReason);
+            var outcome = BuildElement(element, profile, item, requestDataset, dataset, provenance, out var rejectReason);
             if (outcome == ElementOutcome.RejectItem)
             {
                 return new DatasetBuildResult { Suppressed = true, SuppressedReason = rejectReason };
@@ -50,6 +51,7 @@ public static partial class DatasetBuilder
 
     private static ElementOutcome BuildElement(
         JsonObject element,
+        DeviceProfile profile,
         WorkItemView item,
         DicomDataset requestDataset,
         DicomDataset outputDataset,
@@ -63,18 +65,18 @@ public static partial class DatasetBuilder
         var vrString = element["vr"]?.GetValue<string>();
         var provenanceKey = tagPathPrefix.Length == 0 ? tagString : $"{tagPathPrefix}.{tagString}";
 
-        if (!EvaluateWhen(element, item, requestDataset))
+        if (!EvaluateWhen(element, profile, item, requestDataset))
         {
             return ElementOutcome.Omitted;
         }
 
         if (string.Equals(vrString, "SQ", StringComparison.Ordinal))
         {
-            return BuildSequenceElement(element, tag, provenanceKey, item, requestDataset, outputDataset, provenance, out rejectReason);
+            return BuildSequenceElement(element, tag, provenanceKey, profile, item, requestDataset, outputDataset, provenance, out rejectReason);
         }
 
         var sourceExpr = element["source"]?.GetValue<string>();
-        var (value, winningSource) = ResolveWithFallback(element, sourceExpr, item, requestDataset);
+        var (value, winningSource) = ResolveWithFallback(element, sourceExpr, profile, item, requestDataset);
 
         if (value is not null && element["maxLength"]?.GetValue<int>() is { } maxLength && value.Length > maxLength)
         {
@@ -109,6 +111,7 @@ public static partial class DatasetBuilder
         JsonObject element,
         DicomTag tag,
         string provenanceKey,
+        DeviceProfile profile,
         WorkItemView item,
         DicomDataset requestDataset,
         DicomDataset outputDataset,
@@ -129,7 +132,7 @@ public static partial class DatasetBuilder
                 continue;
             }
 
-            var outcome = BuildElement(innerElement, item, requestDataset, sqItemDataset, provenance, out rejectReason, $"{provenanceKey}[0]");
+            var outcome = BuildElement(innerElement, profile, item, requestDataset, sqItemDataset, provenance, out rejectReason, $"{provenanceKey}[0]");
             if (outcome == ElementOutcome.RejectItem)
             {
                 return ElementOutcome.RejectItem;
@@ -140,16 +143,16 @@ public static partial class DatasetBuilder
         return ElementOutcome.Included;
     }
 
-    private static bool EvaluateWhen(JsonObject element, WorkItemView item, DicomDataset requestDataset)
+    private static bool EvaluateWhen(JsonObject element, DeviceProfile profile, WorkItemView item, DicomDataset requestDataset)
     {
         var whenExpr = element["when"]?.GetValue<string>();
-        return whenExpr is null || ResolveSource(whenExpr, item, requestDataset) is not null;
+        return whenExpr is null || ResolveSource(whenExpr, profile, item, requestDataset) is not null;
     }
 
     private static (string? Value, string? WinningSource) ResolveWithFallback(
-        JsonObject element, string? sourceExpr, WorkItemView item, DicomDataset requestDataset)
+        JsonObject element, string? sourceExpr, DeviceProfile profile, WorkItemView item, DicomDataset requestDataset)
     {
-        var primary = ResolveSource(sourceExpr, item, requestDataset);
+        var primary = ResolveSource(sourceExpr, profile, item, requestDataset);
         if (primary is not null)
         {
             return (primary, sourceExpr);
@@ -158,7 +161,7 @@ public static partial class DatasetBuilder
         var fallbackExpr = element["fallback"]?.GetValue<string>();
         if (fallbackExpr is not null)
         {
-            var fallbackValue = ResolveSource(fallbackExpr, item, requestDataset);
+            var fallbackValue = ResolveSource(fallbackExpr, profile, item, requestDataset);
             if (fallbackValue is not null)
             {
                 return (fallbackValue, fallbackExpr);
@@ -168,7 +171,7 @@ public static partial class DatasetBuilder
         return (null, null);
     }
 
-    private static string? ResolveSource(string? source, WorkItemView item, DicomDataset requestDataset)
+    private static string? ResolveSource(string? source, DeviceProfile profile, WorkItemView item, DicomDataset requestDataset)
     {
         if (source is null)
         {
@@ -193,7 +196,9 @@ public static partial class DatasetBuilder
 
         if (source == "auto:patientName")
         {
-            return ComposePatientName(item);
+            // T7：群割当（charset.patientName）＋生バイト検証（規則19）。検証に落ちたら Suppressed（=null）。
+            var result = PnEncoder.Encode(profile.PatientNameGroups, item, profile.SpecificCharacterSet);
+            return result.Suppressed ? null : result.Value;
         }
 
         if (source == "auto:patientSex")
@@ -208,7 +213,7 @@ public static partial class DatasetBuilder
 
         if (source.StartsWith("coalesce:", StringComparison.Ordinal))
         {
-            return ResolveCoalesce(source["coalesce:".Length..], item, requestDataset);
+            return ResolveCoalesce(source["coalesce:".Length..], profile, item, requestDataset);
         }
 
         // T1 の ProfileValidator が起動時にこれらの形式を既に検証済みのため、ここに来るのは
@@ -271,7 +276,7 @@ public static partial class DatasetBuilder
         return null;
     }
 
-    private static string? ResolveCoalesce(string spec, WorkItemView item, DicomDataset requestDataset)
+    private static string? ResolveCoalesce(string spec, DeviceProfile profile, WorkItemView item, DicomDataset requestDataset)
     {
         // 実装指示書には coalesce: の区切り文字の指定が無いため、"[src1|src2|...]" 形式を
         // 独自に採用した（実際の利用例が出たら見直すこと。現行プロファイルでは未使用）。
@@ -283,28 +288,11 @@ public static partial class DatasetBuilder
 
         foreach (var candidate in trimmed.Split('|', StringSplitOptions.TrimEntries))
         {
-            var value = ResolveSource(candidate, item, requestDataset);
+            var value = ResolveSource(candidate, profile, item, requestDataset);
             if (value is not null)
             {
                 return value;
             }
-        }
-
-        return null;
-    }
-
-    private static string? ComposePatientName(WorkItemView item)
-    {
-        // 正式な文字コード群割当（半角/全角カナ・漢字）は T7（PnEncoder）の仕事。
-        // ここでは「漢字表記があれば漢字、無ければカナ表記」という最小限の合成のみ行う。
-        if (!string.IsNullOrEmpty(item.FamilyNameKanji) || !string.IsNullOrEmpty(item.GivenNameKanji))
-        {
-            return $"{item.FamilyNameKanji}^{item.GivenNameKanji}";
-        }
-
-        if (!string.IsNullOrEmpty(item.FamilyNameKana) || !string.IsNullOrEmpty(item.GivenNameKana))
-        {
-            return $"{item.FamilyNameKana}^{item.GivenNameKana}";
         }
 
         return null;

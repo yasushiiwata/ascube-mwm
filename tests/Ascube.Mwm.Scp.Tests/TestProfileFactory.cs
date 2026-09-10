@@ -43,7 +43,11 @@ internal static class TestProfileFactory
             ["network"] = network,
             ["matching"] = new JsonObject { ["modalityMatching"] = "ignore", ["maxResults"] = 1 },
             ["visibility"] = new JsonObject { ["mode"] = "current-only", ["currentTtlMinutes"] = 15 },
-            ["charset"] = new JsonObject { ["specificCharacterSet"] = "ISO_IR 192" },
+            ["charset"] = new JsonObject
+            {
+                ["specificCharacterSet"] = "ISO_IR 192",
+                ["patientName"] = new JsonObject { ["group1"] = "kanaFull", ["group2"] = "kanji", ["group3"] = "kanaFull" },
+            },
             ["dataset"] = JsonNode.Parse(DatasetElementsJson)!,
         };
 

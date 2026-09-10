@@ -81,7 +81,8 @@ public class CFindMinimalTests
         var result = Assert.Single(pending);
         Assert.Equal("ISO_IR 192", result.GetString(DicomTag.SpecificCharacterSet));
         Assert.Equal("000012345678", result.GetString(DicomTag.PatientID));
-        Assert.Equal("アスキューブ^タロウ", result.GetString(DicomTag.PatientName));
+        // TestProfileFactory の charset.patientName: group1/3=kanaFull（テスト候補にカナ無し→空）, group2=kanji。
+        Assert.Equal("=アスキューブ^タロウ", result.GetString(DicomTag.PatientName));
         Assert.Equal("2.25.999999999999999999999999999999999999", result.GetString(DicomTag.StudyInstanceUID));
 
         var sps = Assert.Single(result.GetSequence(DicomTag.ScheduledProcedureStepSequence));

@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Text.Json.Nodes;
+using Ascube.Mwm.Core.PatientName;
 
 namespace Ascube.Mwm.Core.Config;
 
@@ -42,6 +43,9 @@ public sealed class DeviceProfile
     /// </summary>
     public string? ScheduledStationModality { get; init; }
 
+    /// <summary>charset.patientName の群割当（T7 PnEncoder が使う）。</summary>
+    public required PnGroupAssignment PatientNameGroups { get; init; }
+
     public required JsonObject Raw { get; init; }
 
     public static DeviceProfile FromValidated(string id, JsonObject profile)
@@ -66,6 +70,10 @@ public sealed class DeviceProfile
                 : Array.Empty<string>(),
             ModalityMatching = profile["matching"]?["modalityMatching"]?.GetValue<string>() ?? "ignore",
             ScheduledStationModality = ExtractScheduledStationModality(profile),
+            PatientNameGroups = new PnGroupAssignment(
+                PnGroupAssignment.Parse(profile["charset"]?["patientName"]?["group1"]?.GetValue<string>()),
+                PnGroupAssignment.Parse(profile["charset"]?["patientName"]?["group2"]?.GetValue<string>()),
+                PnGroupAssignment.Parse(profile["charset"]?["patientName"]?["group3"]?.GetValue<string>())),
             Raw = profile,
         };
     }
