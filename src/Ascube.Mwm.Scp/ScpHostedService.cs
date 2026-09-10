@@ -1,6 +1,7 @@
 using System.Linq;
 using Ascube.Mwm.Abstractions;
 using Ascube.Mwm.Core.Config;
+using Ascube.Mwm.Store.Audit;
 using FellowOakDicom.Network;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -15,6 +16,7 @@ public sealed class ScpHostedService(
     IDicomServerFactory serverFactory,
     IReadOnlyList<DeviceProfile> profiles,
     IWorklistRepository repository,
+    IAuditWriter auditWriter,
     ILogger<ScpHostedService> logger) : IHostedService
 {
     private readonly List<IDicomServer> _servers = [];
@@ -23,7 +25,7 @@ public sealed class ScpHostedService(
     {
         foreach (var group in profiles.GroupBy(p => p.Port))
         {
-            var routing = new ScpRoutingContext { Profiles = group.ToArray(), Repository = repository };
+            var routing = new ScpRoutingContext { Profiles = group.ToArray(), Repository = repository, AuditWriter = auditWriter };
             var server = serverFactory.Create<MwmDicomService>(group.Key, userState: routing, logger: logger);
             _servers.Add(server);
 

@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Sockets;
 using Ascube.Mwm.Abstractions;
 using Ascube.Mwm.Core.Config;
+using Ascube.Mwm.Store.Audit;
 using FellowOakDicom;
 using FellowOakDicom.Network;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,6 +20,8 @@ internal sealed class ScpTestServer : IDisposable
 
     public IWorklistRepository Repository { get; }
 
+    public FakeAuditWriter AuditWriter { get; }
+
     public ScpTestServer(params DeviceProfile[] profiles) : this(new FakeWorklistRepository(), profiles)
     {
     }
@@ -27,13 +30,14 @@ internal sealed class ScpTestServer : IDisposable
     {
         Port = GetFreeTcpPort();
         Repository = repository;
+        AuditWriter = new FakeAuditWriter();
 
         var services = new ServiceCollection();
         services.AddFellowOakDicom();
         _services = services.BuildServiceProvider();
 
         var factory = _services.GetRequiredService<IDicomServerFactory>();
-        var routing = new ScpRoutingContext { Profiles = profiles, Repository = repository };
+        var routing = new ScpRoutingContext { Profiles = profiles, Repository = repository, AuditWriter = AuditWriter };
         Server = factory.Create<MwmDicomService>(Port, userState: routing);
     }
 

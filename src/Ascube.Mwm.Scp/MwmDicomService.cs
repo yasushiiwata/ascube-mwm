@@ -1,11 +1,15 @@
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using Ascube.Mwm.Abstractions;
 using Ascube.Mwm.Core.Config;
 using Ascube.Mwm.Core.Dataset;
 using Ascube.Mwm.Core.Matching;
+using Ascube.Mwm.Store.Audit;
 using FellowOakDicom;
 using FellowOakDicom.Network;
+using FellowOakDicom.Serialization;
 using Microsoft.Extensions.Logging;
 
 namespace Ascube.Mwm.Scp;
@@ -137,39 +141,96 @@ public sealed class MwmDicomService : DicomService, IDicomServiceProvider, IDico
     /// <summary>
     /// T5：日付範囲・PatientID・PatientName・Modality を判定し、一致した実データのみ返す。
     /// T6：一致した1件は <see cref="DatasetBuilder"/>（dataset.elements DSL）で組み立てる。
+    /// T8：要求データセット（DICOM JSON Model）・来歴・0件理由を AuditCFind/AuditCFindItem に記録する。
     /// 1人モデルなので0件か1件。該当0件は Success かつ結果なし（規則2）。
     /// </summary>
     public async IAsyncEnumerable<DicomCFindResponse> OnCFindRequestAsync(DicomCFindRequest request)
     {
         var profile = _resolvedProfile
             ?? throw new InvalidOperationException("C-FIND 処理時にプロファイルが未解決です（アソシエーション確立後のはずです）");
+        var association = Association;
 
         var criteria = QueryCriteriaParser.Parse(request.Dataset);
+        var stopwatch = Stopwatch.StartNew();
+        var auditItems = new List<AuditCFindItemRecord>();
+        var itemIndex = 0;
+        var resultCount = 0;
+        string? explain = null;
+        var completedNormally = false;
 
-        await foreach (var item in Routing.Repository.QueryAsync(criteria, limit: 1))
+        try
         {
-            if (!MatchEngine.EvaluateModality(criteria.Modality, profile.ScheduledStationModality, profile.ModalityMatching))
+            await foreach (var item in Routing.Repository.QueryAsync(criteria, limit: 1))
             {
-                Logger.LogInformation(
-                    "C-FIND: Modality 不一致のため0件（要求=\"{Requested}\", 保持=\"{Candidate}\", mode={Mode}）",
-                    criteria.Modality, profile.ScheduledStationModality, profile.ModalityMatching);
-                continue;
+                if (!MatchEngine.EvaluateModality(criteria.Modality, profile.ScheduledStationModality, profile.ModalityMatching))
+                {
+                    var reason = $"Modality の指名が一致しません（要求: \"{criteria.Modality}\", 保持: \"{profile.ScheduledStationModality}\", mode={profile.ModalityMatching}）";
+                    Logger.LogInformation("C-FIND: {Reason}", reason);
+                    auditItems.Add(new AuditCFindItemRecord { ItemIndex = itemIndex++, SuppressedReason = reason });
+                    explain ??= reason;
+                    continue;
+                }
+
+                var built = DatasetBuilder.Build(profile, item, request.Dataset);
+                if (built.Suppressed)
+                {
+                    // 規則4：患者に属する値が欠損・不正な行は捏造せず返さない。
+                    Logger.LogWarning(
+                        "C-FIND: WorkItemId={WorkItemId} は Suppressed: {Reason}",
+                        item.WorkItemId, built.SuppressedReason);
+                    auditItems.Add(new AuditCFindItemRecord { ItemIndex = itemIndex++, SuppressedReason = built.SuppressedReason });
+                    explain ??= built.SuppressedReason;
+                    continue;
+                }
+
+                auditItems.Add(new AuditCFindItemRecord
+                {
+                    ItemIndex = itemIndex++,
+                    ProvenanceJson = JsonSerializer.Serialize(built.Provenance),
+                });
+                resultCount++;
+                yield return new DicomCFindResponse(request, DicomStatus.Pending) { Dataset = built.Dataset };
             }
 
-            var built = DatasetBuilder.Build(profile, item, request.Dataset);
-            if (built.Suppressed)
+            if (resultCount == 0 && explain is null)
             {
-                // 規則4：患者に属する値が欠損・不正な行は捏造せず返さない。
-                // 監査への構造化記録（AuditCFindItem 等）は T8 で行う。
-                Logger.LogWarning(
-                    "C-FIND: WorkItemId={WorkItemId} は Suppressed: {Reason}",
-                    item.WorkItemId, built.SuppressedReason);
-                continue;
+                // 該当0件の理由を名指しする（実装指示書 T8 の受入条件1〜5のうち、
+                // CurrentEntry 不在・TTL切れ・日付範囲外・PatientID/PatientName不一致は Repository 側が判定する）。
+                var explainResult = await Routing.Repository.ExplainAsync(criteria);
+                explain = explainResult.Reason;
             }
 
-            yield return new DicomCFindResponse(request, DicomStatus.Pending) { Dataset = built.Dataset };
+            yield return new DicomCFindResponse(request, DicomStatus.Success);
+            completedNormally = true;
         }
+        finally
+        {
+            stopwatch.Stop();
+            var record = new AuditCFindRecord
+            {
+                TimestampUtc = DateTimeOffset.UtcNow,
+                ProfileId = profile.Id,
+                CalledAe = association.CalledAE,
+                CallingAe = association.CallingAE,
+                RequestJson = DicomJson.ConvertDicomToJson(request.Dataset),
+                CriteriaJson = JsonSerializer.Serialize(criteria),
+                ResultCount = resultCount,
+                DurationMs = stopwatch.ElapsedMilliseconds,
+                Status = completedNormally ? "Success" : "Aborted",
+                Explain = resultCount == 0 ? explain : null,
+                PeerAborted = !completedNormally,
+                Items = auditItems,
+            };
 
-        yield return new DicomCFindResponse(request, DicomStatus.Success);
+            try
+            {
+                await Routing.AuditWriter.RecordCFindAsync(record);
+            }
+            catch (Exception ex)
+            {
+                // 監査ログの書き込み失敗で C-FIND 応答そのものを失敗させない。
+                Logger.LogError(ex, "C-FIND: 監査ログの書き込みに失敗しました");
+            }
+        }
     }
 }

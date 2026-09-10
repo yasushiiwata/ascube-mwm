@@ -1,6 +1,7 @@
 using System.Linq;
 using Ascube.Mwm.Abstractions;
 using Ascube.Mwm.Core.Config;
+using Ascube.Mwm.Store.Audit;
 
 namespace Ascube.Mwm.Scp;
 
@@ -15,6 +16,9 @@ public sealed class ScpRoutingContext
 
     /// <summary>C-FIND（T4/T5）が読む、TTL・存在確認のみを行う読み取り専用リポジトリ（規則5）。</summary>
     public required IWorklistRepository Repository { get; init; }
+
+    /// <summary>C-FIND ごとの監査ログ書き込み口（T8）。ワークリストDBとは別ファイル（規則5）。</summary>
+    public required IAuditWriter AuditWriter { get; init; }
 
     /// <summary>
     /// Called AE Title でプロファイルを解決する（T3 のルーティング）。
