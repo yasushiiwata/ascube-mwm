@@ -18,6 +18,7 @@
 | `collect-evidence.ps1` | 証跡一式（プロファイル・直近監査ログ・T9生キャプチャ・pcap）を1フォルダにまとめる。 |
 | `install-service.ps1` | Windows サービスとしてインストールする（要管理者権限。自動起動・異常終了時の自動復帰を設定）。 |
 | `rollback.ps1` | `install-service.ps1` 実行前の状態へ戻す（要管理者権限。5分以内が目標）。 |
+| `06_wlmscpfs_compare.ps1` | T13：DCMTK純正の参照実装 `wlmscpfs` と `mwm-scp` の応答をタグ・VR・値・SQ構造で意味比較する（UID・時刻等の可変値は除外）。使い方は次節。 |
 
 `install-service.ps1` / `rollback.ps1` はシステムへの変更（サービス登録・ACL）を伴うため、
 このリポジトリの開発セッションでは自動実行していない。実機での実行前に内容を必ず確認すること。
@@ -29,6 +30,34 @@ Windows PowerShell 5.1 の既定エンコーディングのままだと日本語
 「現在の受診者：あり」の判定を誤ることがある。このスクリプトは起動時に
 `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8` を設定して対処済み。
 他のスクリプト（01〜05, mark.bat）は出力をそのまま素通しするだけなのでこの問題は起きない。
+
+## 06_wlmscpfs_compare.ps1（T13：wlmscpfs との意味比較）
+
+`mwm-scp` を実際に起動した状態（別ターミナルで `dotnet run --project src/Ascube.Mwm.Scp -- --console --profile BMD_HOLOGIC`。
+BRIDGE-Navi 側で受診者を1人 `SetCurrentAsync` しておくこと）で実行する。
+
+```powershell
+.\scripts\06_wlmscpfs_compare.ps1
+```
+
+DCMTK純正の `wlmscpfs`（別実装の参照 SCP）に同じ内容の受診者データを持つ `.wl` ファイルを1件用意し、
+`mwm-scp` と `wlmscpfs` の両方に**同じ返却キー**で `findscu` を投げ、`dcmdump` 出力をタグ・VR・値・SQ構造で
+比較する。UID・時刻・MessageID 等の可変値はマスクしてから比較するため、本質的な差分だけが残る
+（実装指示書「禁止事項18：wlmscpfsとバイナリ完全一致を期待しない」に対応）。
+
+### 判明した wlmscpfs の癖（ドキュメント未記載。本スクリプトはこれを踏まえて実装済み）
+
+- **Called AE Title をそのままディレクトリ名として解釈する。** `-dfp <親ディレクトリ>` を指定し、
+  Called AE Title と同名のサブディレクトリの中に `.wl` ファイルを置く必要がある
+  （例：`-aec WLM_REF` なら `<dfp>\WLM_REF\*.wl`）。合わないと "Called AE Title Not Recognized" で
+  アソシエーション自体を拒否される。
+- そのサブディレクトリの中に**空の `lockfile` を事前に作っておく**必要がある
+  （無いと `SetReadlock` エラーで起動時に読み込めない）。
+- 既定（`-efr`）では「Type 1（必須・値あり）相当の属性が欠けている .wl ファイル」を黙って無視する。
+  `ScheduledProcedureStepStartTime` と `ScheduledProcedureStepID` は**空文字列ではなく実際の値**を
+  入れておくこと。
+- `findscu` に返却キーを1つも渡さないと（`QueryRetrieveLevel` だけだと）空応答の送信に失敗して
+  異常終了する。本スクリプトは全返却キーを空値で列挙した `query.dcm` を都度生成して渡している。
 
 ## switch-charset.ps1（T10：ホットリロードによる文字コード切替）
 
