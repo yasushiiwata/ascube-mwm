@@ -52,6 +52,9 @@ var storeOptions = new MwmStoreOptions { DatabasePath = cli.DatabasePath, Device
 builder.Services.AddSingleton(storeOptions);
 builder.Services.AddSingleton<IWorklistRepository>(sp => new SqliteWorklistRepository(sp.GetRequiredService<MwmStoreOptions>()));
 
+// T8：監査ログ（AuditCFind/AuditCFindItem）。ワークリストDBとは別ファイル（規則5。Store/Audit/AuditStoreOptions.cs 参照）。
+builder.Services.AddAscubeMwmAudit(o => o.DatabasePath = cli.AuditDatabasePath);
+
 builder.Services.AddSingleton<IReadOnlyList<DeviceProfile>>(profiles);
 builder.Services.AddHostedService<ScpHostedService>();
 
