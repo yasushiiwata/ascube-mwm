@@ -45,9 +45,19 @@
 - [ ] 自前 PN エンコーダ（ISO 2022 対応）／見積 1〜2日／着手条件：9/28 で UTF-8 が通らなかった場合
 - [ ] 実機(APEX 5.6)での文字コード検証（3案とも机上検証のみ。9/28 に実施）
 - [ ] U-11: PACS の UTF-8 / Enhanced SR 対応確認
-- [ ] Calling AE 照合を ignore から strict へ
-- [ ] logDataPdus を通常運用では false へ
-- [ ] THIRD-PARTY-NOTICES.txt と sbom.json の整備
+- [ ] Calling AE 照合を ignore から strict へ（Hologic側の実AE Titleが確定してから。§8参照）
+- [x] logDataPdus を通常運用では false へ → **確認のみで対応不要と判明（2026-09-11）。**
+      `new FellowOakDicom.Network.DicomServiceOptions()` の既定値がリフレクションで
+      `LogDataPDUs=False` / `LogDimseDatasets=False` と確認できた（fo-dicom 5.2.6）。
+      `IDicomServerFactory.Create<T>` の `configure` コールバックは `DicomServerOptions`
+      （`MaxClientsAllowed` のみ）を受け取るのであって `DicomServiceOptions` ではなく、
+      この版のAPIでは明示的な上書きをきれいに配線する手段が無い。既定値が既に安全側
+      （両方false）であることを確認できたので、無理に配線を足すより現状維持とした。
+- [x] THIRD-PARTY-NOTICES.txt と sbom.json の整備 → **2026-09-11 作成。**
+      `dotnet list package --include-transitive`（Scp/Tools 両方）の実出力から作成。
+      fo-dicom=MS-PL、Microsoft.Extensions.*/Microsoft.Data.Sqlite系/CommunityToolkit.HighPerformance
+      等=MIT、SQLitePCLRaw.*/xunit=Apache-2.0 を確認済み。Serilog/Serilog.Sinks.Fileは
+      Directory.Packages.propsで版だけ固定・現在未参照であることも明記した。
 
 ## T0（2026-09-05実施）で確定した設計上の決定事項
 

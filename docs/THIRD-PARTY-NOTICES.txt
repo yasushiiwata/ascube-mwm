@@ -1,0 +1,121 @@
+ascube-mwm — THIRD-PARTY NOTICES
+==================================
+
+このファイルは ascube-mwm（mwm-scp / mwm-admin / mwm-scu）が利用する
+サードパーティ製ソフトウェアのライセンス表示です。CLAUDE.md 規則13により、
+リリースごとに本ファイルと docs/sbom.json を更新してください。
+（生成元: `dotnet list <project>.csproj package --include-transitive`, net10.0, 2026-09-11）
+
+本製品は以下のオープンソースソフトウェアを、それぞれのライセンス条件のもとで
+利用しています。当社は各ソフトウェアの著作権者ではありません。
+
+
+------------------------------------------------------------------------------
+1. fo-dicom 5.2.6
+------------------------------------------------------------------------------
+配布元: https://github.com/fo-dicom/fo-dicom
+ライセンス: Microsoft Public License (MS-PL)
+
+⚠ 本製品は fo-dicom を NuGet パッケージ参照のまま使用しており、
+  fork・改変は一切行っていません（CLAUDE.md 規則11）。
+
+Microsoft Public License (MS-PL)の全文は以下を参照:
+https://github.com/fo-dicom/fo-dicom/blob/development/License.txt
+
+
+------------------------------------------------------------------------------
+2. MIT License の対象パッケージ
+------------------------------------------------------------------------------
+以下は MIT License のもとで配布されています（詳細な版・依存元は docs/sbom.json）。
+
+  Microsoft.Extensions.* （Hosting / Hosting.WindowsServices / DependencyInjection /
+    Configuration.* / Diagnostics.* / FileProviders.* / FileSystemGlobbing /
+    Logging.* / Options.* / Primitives）
+  Microsoft.Data.Sqlite / Microsoft.Data.Sqlite.Core
+  Microsoft.Bcl.AsyncInterfaces
+  Microsoft.Bcl.HashCode
+  CommunityToolkit.HighPerformance（fo-dicom の推移的依存）
+  System.Diagnostics.EventLog
+  System.ServiceProcess.ServiceController
+  System.Text.Encoding.CodePages
+  Microsoft.NET.Test.Sdk（テストプロジェクトのみ。出荷物には含まれない）
+  xunit.runner.visualstudio（同上）
+
+MIT License の全文:
+
+  Copyright (c) .NET Foundation and Contributors
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to
+  deal in the Software without restriction, including without limitation the
+  rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+  sell copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in
+  all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+  DEALINGS IN THE SOFTWARE.
+
+  (CommunityToolkit.HighPerformance は Copyright (c) .NET Foundation and Contributors
+   のもとで同じ MIT License 条件により配布されています。)
+
+
+------------------------------------------------------------------------------
+3. Apache License 2.0 の対象パッケージ
+------------------------------------------------------------------------------
+以下は Apache License, Version 2.0 のもとで配布されています。
+
+  SQLitePCLRaw.core / SQLitePCLRaw.lib.e_sqlite3 /
+    SQLitePCLRaw.provider.e_sqlite3 / SQLitePCLRaw.bundle_e_sqlite3
+    （配布元: https://github.com/ericsink/SQLitePCL.raw）
+  xunit（テストプロジェクトのみ。出荷物には含まれない）
+    （配布元: https://github.com/xunit/xunit）
+
+Apache License, Version 2.0 の全文:
+https://www.apache.org/licenses/LICENSE-2.0.txt
+
+要約（全文はリンク先を参照。要約自体には法的効力はありません）:
+  本ソフトウェアは「現状のまま」提供され、明示・黙示を問わずいかなる保証もありません。
+  再配布時は著作権表示・ライセンス全文・変更点の告知を保持する必要があります。
+
+
+------------------------------------------------------------------------------
+4. バージョン固定・未使用パッケージについて
+------------------------------------------------------------------------------
+すべての依存パッケージのバージョンは Directory.Packages.props で一元管理・固定
+しています（CLAUDE.md 規則13）。
+
+⚠ Serilog 4.3.0 / Serilog.Sinks.File 6.0.0（ともに Apache License 2.0）は
+  Directory.Packages.props でバージョンのみ固定していますが、どのプロジェクトからも
+  現在参照されておらず、出荷物には含まれていません（T3 の設計判断でコンソールログ
+  （Microsoft.Extensions.Logging 標準）のみを配線。詳細は docs/progress.md T3 行）。
+  将来ファイル出力ログを配線する場合はこの表を更新すること。
+
+
+------------------------------------------------------------------------------
+5. リポジトリに含めていないツール（規則12）
+------------------------------------------------------------------------------
+以下は開発・現地検証で「別プロセスとして実行する外部ツール」であり、本製品には
+同梱・リンクしていません。ライセンス表示の対象外です。
+
+  DCMTK（BSD類似ライセンス。ただし本製品には同梱しない。echoscu/findscu/dcmdump/
+    wlmscpfs を別プロセスとして呼ぶのみ）
+  Wireshark / dumpcap（GPLv2+。同梱・リンクしない）
+  Npcap（プロプライエタリ。インストーラに同梱しない。導入は利用者の別途作業）
+
+
+------------------------------------------------------------------------------
+このファイルの更新方法
+------------------------------------------------------------------------------
+  dotnet list src/Ascube.Mwm.Scp/Ascube.Mwm.Scp.csproj package --include-transitive
+  dotnet list src/Ascube.Mwm.Tools/Ascube.Mwm.Tools.csproj package --include-transitive
+
+の出力と Directory.Packages.props を突き合わせ、新規・更新されたパッケージが
+あれば本ファイルと docs/sbom.json の両方に反映してください。
