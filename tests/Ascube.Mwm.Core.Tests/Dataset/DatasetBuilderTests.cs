@@ -63,7 +63,8 @@ public class DatasetBuilderTests
 
         Assert.False(result.Suppressed);
         var ds = result.Dataset!;
-        Assert.Equal("武田^太郎", ds.GetString(DicomTag.PatientName));
+        // BMD_HOLOGIC の charset.patientName: group1=kanaFull, group2=kanji, group3=kanaFull（T7 PnEncoder）。
+        Assert.Equal("タケダ^タロウ=武田^太郎=タケダ^タロウ", ds.GetString(DicomTag.PatientName));
         Assert.Equal("000012345678", ds.GetString(DicomTag.PatientID));
         Assert.Equal("19800101", ds.GetString(DicomTag.PatientBirthDate));
         Assert.Equal("M", ds.GetString(DicomTag.PatientSex));
@@ -150,12 +151,13 @@ public class DatasetBuilderTests
     }
 
     [Fact]
-    public void Build_KanaOnlyName_ComposesFromKana()
+    public void Build_KanjiMissing_KanaGroupsStillComposed_KanjiGroupEmpty()
     {
+        // group2(kanji) だけ解決できないので中間の群は空文字（"=" は保持する。DICOM PN の群区切りの仕様どおり）。
         var item = MakeFullItem() with { FamilyNameKanji = null, GivenNameKanji = null };
         var result = DatasetBuilder.Build(Profile, item, new DicomDataset());
 
         Assert.False(result.Suppressed);
-        Assert.Equal("ﾀｹﾀﾞ^ﾀﾛｳ", result.Dataset!.GetString(DicomTag.PatientName));
+        Assert.Equal("タケダ^タロウ==タケダ^タロウ", result.Dataset!.GetString(DicomTag.PatientName));
     }
 }
