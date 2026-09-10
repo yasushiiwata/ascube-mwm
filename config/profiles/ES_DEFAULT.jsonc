@@ -1,11 +1,55 @@
 {
-  // T14（横展開検証用）の枠のみ。第2弾・内視鏡想定。
-  // コード変更ゼロで findscu -k Modality=ES が引けることを T14 で確認する。中身は T14 で詰める。
+  // T14（横展開検証）：架空の内視鏡プロファイル。第2弾（内視鏡4台）・第3弾（超音波6台）が
+  // この1枚（設定ファイルのみ、コード変更ゼロ）で載せられることを示す。
+  // BMD_HOLOGIC とは別ポートで待受させる想定（実運用では装置ごとに別プロセス・別ポートを想定。
+  // Ascube.Mwm.Store.MwmStoreOptions.DeviceProfileId はプロセス起動時の先頭プロファイルIDに
+  // 固定される実装のため、複数装置を1プロセスに混在させる場合は装置ごとにプロセスを分けること）。
   "schemaVersion": 1,
   "id": "ES_DEFAULT",
-  "description": "内視鏡（架空・横展開検証用）の枠のみ",
+  "description": "内視鏡（架空・横展開検証用）",
 
   "network": {
-    "aeTitle": "ASCUBE_ES"
+    "aeTitle": "ASCUBE_ES",
+    "port": 11113
+  },
+
+  "matching": {
+    "modalityMatching": "strict"
+  },
+
+  "charset": {
+    "specificCharacterSet": "ISO_IR 192",
+    "patientName": {
+      "group1": "kanaFull",
+      "group2": "kanji",
+      "group3": "kanaFull"
+    }
+  },
+
+  "dataset": {
+    "elements": [
+      { "tag": "(0010,0010)", "vr": "PN", "vm": "1", "source": "auto:patientName", "required": true, "onMissing": "reject-item" },
+      { "tag": "(0010,0020)", "vr": "LO", "vm": "1", "source": "db:StablePatientId", "required": true, "onMissing": "reject-item", "maxLength": 64 },
+      { "tag": "(0010,0030)", "vr": "DA", "vm": "1", "source": "db:BirthDate", "required": false, "onMissing": "empty" },
+      { "tag": "(0010,0040)", "vr": "CS", "vm": "1", "source": "auto:patientSex", "required": false, "onMissing": "empty" },
+      { "tag": "(0020,000D)", "vr": "UI", "vm": "1", "source": "uid:study", "required": true, "onMissing": "reject-item" },
+      { "tag": "(0008,0050)", "vr": "SH", "vm": "1", "source": "db:AccessionNumber", "required": false, "onMissing": "empty", "maxLength": 16 },
+      { "tag": "(0040,1001)", "vr": "SH", "vm": "1", "source": "db:RequestedProcedureId", "required": false, "onMissing": "empty" },
+      { "tag": "(0032,1060)", "vr": "LO", "vm": "1", "source": "db:RequestedProcedureDesc", "required": false, "onMissing": "empty" },
+      {
+        "tag": "(0040,0100)", "vr": "SQ", "required": true, "onMissing": "reject-item",
+        "items": [
+          {
+            "elements": [
+              { "tag": "(0008,0060)", "vr": "CS", "vm": "1", "source": "const:ES", "required": false, "onMissing": "empty" },
+              { "tag": "(0040,0001)", "vr": "AE", "vm": "1", "source": "const:ASCUBE_ES", "required": false, "onMissing": "empty" },
+              { "tag": "(0040,0002)", "vr": "DA", "vm": "1", "source": "db:ScheduledDate", "required": true, "onMissing": "reject-item" },
+              { "tag": "(0040,0003)", "vr": "TM", "vm": "1", "source": "const:", "required": false, "onMissing": "empty" },
+              { "tag": "(0040,0007)", "vr": "LO", "vm": "1", "source": "db:RequestedProcedureDesc", "required": false, "onMissing": "empty" }
+            ]
+          }
+        ]
+      }
+    ]
   }
 }
