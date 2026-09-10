@@ -1,6 +1,8 @@
 using System.Text;
+using Ascube.Mwm.Abstractions;
 using Ascube.Mwm.Core.Config;
 using Ascube.Mwm.Scp;
+using Ascube.Mwm.Store;
 using FellowOakDicom;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -42,6 +44,14 @@ if (!cli.Console)
 }
 
 builder.Services.AddFellowOakDicom();
+
+// 規則5：SCP は SQLite を読み取り専用でしか開かない。書き込む経路（IWorklistWriter）を
+// DIコンテナに一切登録しないよう、Ascube.Mwm.Store.ServiceCollectionExtensions.AddAscubeMwmStore
+// （Writer も一緒に登録してしまう）は使わず、IWorklistRepository だけを直接登録する。
+var storeOptions = new MwmStoreOptions { DatabasePath = cli.DatabasePath, DeviceProfileId = cli.ProfileIds[0] };
+builder.Services.AddSingleton(storeOptions);
+builder.Services.AddSingleton<IWorklistRepository>(sp => new SqliteWorklistRepository(sp.GetRequiredService<MwmStoreOptions>()));
+
 builder.Services.AddSingleton<IReadOnlyList<DeviceProfile>>(profiles);
 builder.Services.AddHostedService<ScpHostedService>();
 

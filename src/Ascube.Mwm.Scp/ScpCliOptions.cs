@@ -9,14 +9,19 @@ public sealed class ScpCliOptions
 
     public required string ProfilesDir { get; init; }
 
+    /// <summary>ワークリストDB（SQLite）のパス。SCP は規則5により読み取り専用でしか開かない。</summary>
+    public required string DatabasePath { get; init; }
+
     public required bool Console { get; init; }
 
-    public const string Usage = "使い方: mwm-scp [--console] --profile <id> [--profile <id> ...] [--profiles-dir <dir>]";
+    public const string Usage =
+        "使い方: mwm-scp [--console] --profile <id> [--profile <id> ...] [--profiles-dir <dir>] [--db <path>]";
 
     public static ScpCliOptions? Parse(string[] args)
     {
         var profileIds = new List<string>();
         var profilesDir = Path.Combine(Directory.GetCurrentDirectory(), "config", "profiles");
+        var databasePath = Path.Combine(Directory.GetCurrentDirectory(), "data", "mwm.db");
         var console = false;
 
         for (var i = 0; i < args.Length; i++)
@@ -32,6 +37,9 @@ public sealed class ScpCliOptions
                 case "--profiles-dir" when i + 1 < args.Length:
                     profilesDir = args[++i];
                     break;
+                case "--db" when i + 1 < args.Length:
+                    databasePath = args[++i];
+                    break;
                 default:
                     return null;
             }
@@ -46,6 +54,7 @@ public sealed class ScpCliOptions
         {
             ProfileIds = profileIds,
             ProfilesDir = profilesDir,
+            DatabasePath = databasePath,
             Console = console,
         };
     }

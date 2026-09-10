@@ -35,7 +35,7 @@ public sealed class SqliteWorklistRepository : IWorklistRepository
         }
 
         var view = await TryGetLiveViewAsync(ct);
-        if (view is not null)
+        if (view is not null && MatchEngine.Evaluate(c, view).IsMatch)
         {
             yield return view;
         }
@@ -61,8 +61,31 @@ public sealed class SqliteWorklistRepository : IWorklistRepository
             };
         }
 
+        if (row.StudyInstanceUid is null)
+        {
+            return new ExplainResult { Found = false, Reason = "CurrentEntry に紐づく StudyInstanceUID がありません（UidAllocation 未採番）" };
+        }
+
+        var view = MapToView(row, row.StudyInstanceUid);
+        var match = MatchEngine.Evaluate(c, view);
+        if (!match.IsMatch)
+        {
+            return new ExplainResult { Found = false, Reason = DescribeMismatch(match.Outcome, c, view) };
+        }
+
         return new ExplainResult { Found = true, Reason = "ok" };
     }
+
+    private static string DescribeMismatch(MatchOutcome outcome, QueryCriteria c, WorkItemView view) => outcome switch
+    {
+        MatchOutcome.ScheduledDateOutOfRange =>
+            $"ScheduledDate が要求範囲外です（要求: \"{c.ScheduledDateRange}\", 保持: \"{view.ScheduledDate}\"）",
+        MatchOutcome.PatientIdMismatch =>
+            $"PatientID の指名が一致しません（要求: \"{c.PatientId}\", 保持: \"{view.StablePatientId}\"）",
+        MatchOutcome.PatientNameMismatch =>
+            $"PatientName の指名が一致しません（要求: \"{c.PatientName}\"）",
+        _ => "0件です（詳細不明）",
+    };
 
     private async Task<WorkItemView?> TryGetLiveViewAsync(CancellationToken ct)
     {
@@ -73,26 +96,28 @@ public sealed class SqliteWorklistRepository : IWorklistRepository
             return null;
         }
 
-        return new WorkItemView
-        {
-            WorkItemId = row.WorkItemId,
-            StudyInstanceUid = row.StudyInstanceUid,
-            StablePatientId = row.StablePatientId,
-            FamilyNameKanji = row.FamilyNameKanji,
-            GivenNameKanji = row.GivenNameKanji,
-            FamilyNameKana = row.FamilyNameKana,
-            GivenNameKana = row.GivenNameKana,
-            BirthDate = row.BirthDate,
-            Sex = row.Sex,
-            ScheduledDate = row.ScheduledDate,
-            AccessionNumber = row.AccessionNumber,
-            RequestedProcedureId = row.RequestedProcedureId,
-            RequestedProcedureDesc = row.RequestedProcedureDesc,
-            PatientSizeM = row.PatientSizeM,
-            PatientWeightKg = row.PatientWeightKg,
-            SourceMessageId = row.SourceMessageId,
-        };
+        return MapToView(row, row.StudyInstanceUid);
     }
+
+    private static WorkItemView MapToView(CurrentEntryRow row, string studyInstanceUid) => new()
+    {
+        WorkItemId = row.WorkItemId,
+        StudyInstanceUid = studyInstanceUid,
+        StablePatientId = row.StablePatientId,
+        FamilyNameKanji = row.FamilyNameKanji,
+        GivenNameKanji = row.GivenNameKanji,
+        FamilyNameKana = row.FamilyNameKana,
+        GivenNameKana = row.GivenNameKana,
+        BirthDate = row.BirthDate,
+        Sex = row.Sex,
+        ScheduledDate = row.ScheduledDate,
+        AccessionNumber = row.AccessionNumber,
+        RequestedProcedureId = row.RequestedProcedureId,
+        RequestedProcedureDesc = row.RequestedProcedureDesc,
+        PatientSizeM = row.PatientSizeM,
+        PatientWeightKg = row.PatientWeightKg,
+        SourceMessageId = row.SourceMessageId,
+    };
 
     private async Task<SqliteConnection> OpenAsync(CancellationToken ct)
     {

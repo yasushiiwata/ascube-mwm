@@ -33,6 +33,15 @@ public sealed class DeviceProfile
     /// <summary>callingAeMatching が strict/logOnly のときに照合する許可リスト。ignore では未使用。</summary>
     public required IReadOnlyList<string> AllowedCallingAeTitles { get; init; }
 
+    /// <summary>Modality の照合モード。strict/lenient/ignore（既定 ignore。APEX の Modality 既定は None）。</summary>
+    public required string ModalityMatching { get; init; }
+
+    /// <summary>
+    /// この装置に固定で割り当てる Modality（(0040,0100)[0].(0008,0060) の const: 値）。
+    /// dataset.elements にその要素が無い、または const: が空文字なら null（実装指示書どおり "APEX の Modality 既定は None"）。
+    /// </summary>
+    public string? ScheduledStationModality { get; init; }
+
     public required JsonObject Raw { get; init; }
 
     public static DeviceProfile FromValidated(string id, JsonObject profile)
@@ -55,7 +64,36 @@ public sealed class DeviceProfile
             AllowedCallingAeTitles = network?["allowedCallingAeTitles"] is JsonArray aeArray
                 ? aeArray.Select(v => v!.GetValue<string>()).ToArray()
                 : Array.Empty<string>(),
+            ModalityMatching = profile["matching"]?["modalityMatching"]?.GetValue<string>() ?? "ignore",
+            ScheduledStationModality = ExtractScheduledStationModality(profile),
             Raw = profile,
         };
+    }
+
+    /// <summary>
+    /// dataset.elements の (0040,0100) SQ の1件目にある (0008,0060) Modality 要素の const: 値を取り出す。
+    /// DatasetBuilder（T6）が実装するまでの暫定処理（T5：MatchEngine が Modality 照合に使う）。
+    /// </summary>
+    private static string? ExtractScheduledStationModality(JsonObject profile)
+    {
+        var elements = profile["dataset"]?["elements"] as JsonArray;
+        var spsElement = elements?
+            .OfType<JsonObject>()
+            .FirstOrDefault(e => e["tag"]?.GetValue<string>() == "(0040,0100)");
+
+        var firstItem = (spsElement?["items"] as JsonArray)?.OfType<JsonObject>().FirstOrDefault();
+        var innerElements = firstItem?["elements"] as JsonArray;
+        var modalityElement = innerElements?
+            .OfType<JsonObject>()
+            .FirstOrDefault(e => e["tag"]?.GetValue<string>() == "(0008,0060)");
+
+        var source = modalityElement?["source"]?.GetValue<string>();
+        if (source is null || !source.StartsWith("const:", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var value = source["const:".Length..];
+        return value.Length == 0 ? null : value;
     }
 }

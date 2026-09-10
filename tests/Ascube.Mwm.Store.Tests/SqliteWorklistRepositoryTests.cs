@@ -123,10 +123,91 @@ public class SqliteWorklistRepositoryTests
         Assert.True(result.Found);
     }
 
-    private static async Task<List<WorkItemView>> CollectAsync(SqliteWorklistRepository repository, int limit = 10)
+    [Fact]
+    public async Task QueryAsync_WideDaysBackForwardRange_StillReturnsOnlyTheCurrentEntry()
+    {
+        // T5受入条件：「装置がDays Back 60/Forward2の広い範囲を要求しても、返るのはCurrentEntryの1件だけ」。
+        using var db = new TestDatabase();
+        var writer = new SqliteWorklistWriter(db.Options());
+        await writer.SetCurrentAsync(MakeEntry()); // ScheduledDate = 20260928
+        var repository = new SqliteWorklistRepository(db.Options());
+
+        var wideRange = new QueryCriteria { ScheduledDateRange = "20260729-20260930" }; // -60日〜+2日相当
+        var results = await CollectAsync(repository, criteria: wideRange);
+
+        Assert.Single(results);
+    }
+
+    [Fact]
+    public async Task QueryAsync_ScheduledDateOutOfRange_ReturnsEmptyWithoutError()
+    {
+        using var db = new TestDatabase();
+        var writer = new SqliteWorklistWriter(db.Options());
+        await writer.SetCurrentAsync(MakeEntry()); // ScheduledDate = 20260928
+        var repository = new SqliteWorklistRepository(db.Options());
+
+        var outOfRange = new QueryCriteria { ScheduledDateRange = "20260101-20260901" };
+        Assert.Empty(await CollectAsync(repository, criteria: outOfRange));
+    }
+
+    [Fact]
+    public async Task QueryAsync_PatientIdMismatch_ReturnsEmpty()
+    {
+        using var db = new TestDatabase();
+        var writer = new SqliteWorklistWriter(db.Options());
+        await writer.SetCurrentAsync(MakeEntry());
+        var repository = new SqliteWorklistRepository(db.Options());
+
+        var wrongPatient = new QueryCriteria { PatientId = "999999999999" };
+        Assert.Empty(await CollectAsync(repository, criteria: wrongPatient));
+    }
+
+    [Fact]
+    public async Task QueryAsync_PatientIdMatchesWithWildcard_ReturnsTheEntry()
+    {
+        using var db = new TestDatabase();
+        var writer = new SqliteWorklistWriter(db.Options());
+        await writer.SetCurrentAsync(MakeEntry()); // StablePatientId = 000012345678
+        var repository = new SqliteWorklistRepository(db.Options());
+
+        var wildcard = new QueryCriteria { PatientId = "0000*" };
+        Assert.Single(await CollectAsync(repository, criteria: wildcard));
+    }
+
+    [Fact]
+    public async Task ExplainAsync_ScheduledDateOutOfRange_NamesRequestedAndHeldValues()
+    {
+        using var db = new TestDatabase();
+        var writer = new SqliteWorklistWriter(db.Options());
+        await writer.SetCurrentAsync(MakeEntry()); // ScheduledDate = 20260928
+        var repository = new SqliteWorklistRepository(db.Options());
+
+        var result = await repository.ExplainAsync(new QueryCriteria { ScheduledDateRange = "20260101-20260901" });
+
+        Assert.False(result.Found);
+        Assert.Contains("20260101-20260901", result.Reason);
+        Assert.Contains("20260928", result.Reason);
+    }
+
+    [Fact]
+    public async Task ExplainAsync_PatientIdMismatch_NamesRequestedAndHeldValues()
+    {
+        using var db = new TestDatabase();
+        var writer = new SqliteWorklistWriter(db.Options());
+        await writer.SetCurrentAsync(MakeEntry()); // StablePatientId = 000012345678
+        var repository = new SqliteWorklistRepository(db.Options());
+
+        var result = await repository.ExplainAsync(new QueryCriteria { PatientId = "999999999999" });
+
+        Assert.False(result.Found);
+        Assert.Contains("999999999999", result.Reason);
+        Assert.Contains("000012345678", result.Reason);
+    }
+
+    private static async Task<List<WorkItemView>> CollectAsync(SqliteWorklistRepository repository, int limit = 10, QueryCriteria? criteria = null)
     {
         var results = new List<WorkItemView>();
-        await foreach (var item in repository.QueryAsync(new QueryCriteria(), limit))
+        await foreach (var item in repository.QueryAsync(criteria ?? new QueryCriteria(), limit))
         {
             results.Add(item);
         }
