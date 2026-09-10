@@ -9,10 +9,16 @@ namespace Ascube.Mwm.Scp;
 /// 1つの <c>DicomServer</c>（1ポート）に紐づく、解決候補のプロファイル一覧とワークリストの読み取り口。
 /// <c>IDicomServerFactory.Create</c> の <c>userState</c> として渡し、各アソシエーションから
 /// <see cref="Ascube.Mwm.Scp.MwmDicomService.UserState"/> 経由で参照する。
+/// T10：プロファイルは固定リストではなく <see cref="LiveProfileRegistry"/> 経由で毎回読む。
+/// ホットリロードで差し替わっても、進行中のアソシエーションは
+/// <see cref="MwmDicomService"/> がアソシエーション確立時に1回だけ解決した参照を使い続けるため影響を受けない。
 /// </summary>
 public sealed class ScpRoutingContext
 {
-    public required IReadOnlyList<DeviceProfile> Profiles { get; init; }
+    public required LiveProfileRegistry ProfileRegistry { get; init; }
+
+    /// <summary>この DicomServer が待ち受けているポート。ProfileRegistry.Current からこのポート分だけを見る。</summary>
+    public required int Port { get; init; }
 
     /// <summary>C-FIND（T4/T5）が読む、TTL・存在確認のみを行う読み取り専用リポジトリ（規則5）。</summary>
     public required IWorklistRepository Repository { get; init; }
@@ -28,6 +34,8 @@ public sealed class ScpRoutingContext
     public DeviceProfile? ResolveByCalledAe(string calledAe)
     {
         var trimmed = calledAe.Trim();
-        return Profiles.FirstOrDefault(p => string.Equals(p.AeTitle, trimmed, StringComparison.Ordinal));
+        return ProfileRegistry.Current
+            .Where(p => p.Port == Port)
+            .FirstOrDefault(p => string.Equals(p.AeTitle, trimmed, StringComparison.Ordinal));
     }
 }

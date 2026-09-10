@@ -22,6 +22,8 @@ internal sealed class ScpTestServer : IDisposable
 
     public FakeAuditWriter AuditWriter { get; }
 
+    public LiveProfileRegistry ProfileRegistry { get; }
+
     public ScpTestServer(params DeviceProfile[] profiles) : this(new FakeWorklistRepository(), profiles)
     {
     }
@@ -31,13 +33,26 @@ internal sealed class ScpTestServer : IDisposable
         Port = GetFreeTcpPort();
         Repository = repository;
         AuditWriter = new FakeAuditWriter();
+        ProfileRegistry = new LiveProfileRegistry(profiles);
 
         var services = new ServiceCollection();
         services.AddFellowOakDicom();
         _services = services.BuildServiceProvider();
 
         var factory = _services.GetRequiredService<IDicomServerFactory>();
-        var routing = new ScpRoutingContext { Profiles = profiles, Repository = repository, AuditWriter = AuditWriter };
+
+        // ScpRoutingContext.Port はルーティングキー（プロファイルの network.port と一致させる必要がある）。
+        // 実運用では ScpHostedService がプロファイルの port でリッスンするため常に一致するが、
+        // テストはポート衝突を避けるため待受には空きポートを使う。プロファイルが1件も無い呼び出し元
+        // （T3のAE照合テスト等）向けに、プロファイルが無ければ実際の待受ポートをそのまま使う。
+        var routingPort = profiles.Length > 0 ? profiles[0].Port : Port;
+        var routing = new ScpRoutingContext
+        {
+            ProfileRegistry = ProfileRegistry,
+            Port = routingPort,
+            Repository = repository,
+            AuditWriter = AuditWriter,
+        };
         Server = factory.Create<MwmDicomService>(Port, userState: routing);
     }
 

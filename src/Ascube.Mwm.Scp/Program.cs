@@ -7,6 +7,7 @@ using Ascube.Mwm.Store;
 using FellowOakDicom;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 // 起動時に1回。呼ばないと CP932（半角カナ・JIS X 0201 等）が扱えない。
 Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
@@ -66,7 +67,13 @@ builder.Services.AddSingleton<IWorklistRepository>(sp => new SqliteWorklistRepos
 // T8：監査ログ（AuditCFind/AuditCFindItem）。ワークリストDBとは別ファイル（規則5。Store/Audit/AuditStoreOptions.cs 参照）。
 builder.Services.AddAscubeMwmAudit(o => o.DatabasePath = cli.AuditDatabasePath);
 
-builder.Services.AddSingleton<IReadOnlyList<DeviceProfile>>(profiles);
+// T10：ホットリロード＋自動ロールバック。config/profiles/ を監視し、成功時のみ差し替える。
+// 進行中のアソシエーションはアソシエーション確立時に解決した参照を使い続けるため影響を受けない。
+var profileRegistry = new LiveProfileRegistry(profiles);
+builder.Services.AddSingleton(profileRegistry);
+builder.Services.AddHostedService(sp => new ProfileHotReloadService(
+    profileRegistry, cli.ProfileIds, cli.ProfilesDir, sp.GetRequiredService<ILogger<ProfileHotReloadService>>()));
+
 builder.Services.AddHostedService<ScpHostedService>();
 
 using var host = builder.Build();
