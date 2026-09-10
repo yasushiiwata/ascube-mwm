@@ -15,10 +15,17 @@ public sealed class ScpCliOptions
     /// <summary>監査ログDB（AuditCFind/AuditCFindItem）のパス。ワークリストDBとは別ファイル（T8・規則5）。</summary>
     public required string AuditDatabasePath { get; init; }
 
+    /// <summary>生バイト記録（T9）の出力先ディレクトリ。.gitignore 済みの captures/ が既定（規則14）。</summary>
+    public required string CapturesDir { get; init; }
+
+    /// <summary>true なら生バイト記録（T9）を無効化する（開発時のディスク節約用）。</summary>
+    public required bool NoCapture { get; init; }
+
     public required bool Console { get; init; }
 
     public const string Usage =
-        "使い方: mwm-scp [--console] --profile <id> [--profile <id> ...] [--profiles-dir <dir>] [--db <path>] [--audit-db <path>]";
+        "使い方: mwm-scp [--console] --profile <id> [--profile <id> ...] [--profiles-dir <dir>] " +
+        "[--db <path>] [--audit-db <path>] [--captures-dir <dir>] [--no-capture]";
 
     public static ScpCliOptions? Parse(string[] args)
     {
@@ -26,7 +33,9 @@ public sealed class ScpCliOptions
         var profilesDir = Path.Combine(Directory.GetCurrentDirectory(), "config", "profiles");
         var databasePath = Path.Combine(Directory.GetCurrentDirectory(), "data", "mwm.db");
         var auditDatabasePath = Path.Combine(Directory.GetCurrentDirectory(), "data", "mwm-audit.db");
+        var capturesDir = Path.Combine(Directory.GetCurrentDirectory(), "captures");
         var console = false;
+        var noCapture = false;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -34,6 +43,9 @@ public sealed class ScpCliOptions
             {
                 case "--console":
                     console = true;
+                    break;
+                case "--no-capture":
+                    noCapture = true;
                     break;
                 case "--profile" when i + 1 < args.Length:
                     profileIds.Add(args[++i]);
@@ -46,6 +58,9 @@ public sealed class ScpCliOptions
                     break;
                 case "--audit-db" when i + 1 < args.Length:
                     auditDatabasePath = args[++i];
+                    break;
+                case "--captures-dir" when i + 1 < args.Length:
+                    capturesDir = args[++i];
                     break;
                 default:
                     return null;
@@ -63,6 +78,8 @@ public sealed class ScpCliOptions
             ProfilesDir = profilesDir,
             DatabasePath = databasePath,
             AuditDatabasePath = auditDatabasePath,
+            CapturesDir = capturesDir,
+            NoCapture = noCapture,
             Console = console,
         };
     }

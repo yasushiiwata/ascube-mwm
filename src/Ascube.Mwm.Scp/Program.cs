@@ -2,6 +2,7 @@ using System.Text;
 using Ascube.Mwm.Abstractions;
 using Ascube.Mwm.Core.Config;
 using Ascube.Mwm.Scp;
+using Ascube.Mwm.Scp.Capture;
 using Ascube.Mwm.Store;
 using FellowOakDicom;
 using Microsoft.Extensions.DependencyInjection;
@@ -44,6 +45,16 @@ if (!cli.Console)
 }
 
 builder.Services.AddFellowOakDicom();
+
+// T9：生バイト記録。AddFellowOakDicom() の直後に呼ぶこと（順序を逆にすると差し替わらない）。
+// fo-dicom 本体は無改変（規則11）。出力先は .gitignore 済みの captures/（規則14）。
+if (!cli.NoCapture)
+{
+    builder.Services.AddNetworkManager<RecordingNetworkManager>();
+    builder.Services.AddSingleton(new RawCaptureOptions { OutputDirectory = cli.CapturesDir });
+    builder.Services.AddSingleton<RawCaptureWriter>();
+    builder.Services.AddHostedService(sp => sp.GetRequiredService<RawCaptureWriter>());
+}
 
 // 規則5：SCP は SQLite を読み取り専用でしか開かない。書き込む経路（IWorklistWriter）を
 // DIコンテナに一切登録しないよう、Ascube.Mwm.Store.ServiceCollectionExtensions.AddAscubeMwmStore
