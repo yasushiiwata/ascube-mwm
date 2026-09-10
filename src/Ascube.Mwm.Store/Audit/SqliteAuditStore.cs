@@ -72,7 +72,13 @@ public sealed class SqliteAuditStore : IAuditWriter, IAuditReader
         return runId;
     }
 
-    public async Task<AuditCFindRecord?> GetCFindAsync(long runId, CancellationToken ct = default)
+    public Task<AuditCFindRecord?> GetCFindAsync(long runId, CancellationToken ct = default) =>
+        LoadOneAsync("WHERE RunId = $runId", cmd => cmd.Parameters.AddWithValue("$runId", runId), ct);
+
+    public Task<AuditCFindRecord?> GetLatestCFindAsync(CancellationToken ct = default) =>
+        LoadOneAsync("ORDER BY RunId DESC LIMIT 1", _ => { }, ct);
+
+    private async Task<AuditCFindRecord?> LoadOneAsync(string whereOrOrderClause, Action<SqliteCommand> bindParams, CancellationToken ct)
     {
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync(ct);
@@ -80,12 +86,12 @@ public sealed class SqliteAuditStore : IAuditWriter, IAuditReader
         AuditCFindRecord? record = null;
         await using (var command = connection.CreateCommand())
         {
-            command.CommandText = """
+            command.CommandText = $"""
                 SELECT RunId, TimestampUtc, ProfileId, CalledAe, CallingAe, RequestJson, CriteriaJson,
                        Clamped, ResultCount, DurationMs, Status, Explain, PeerAborted
-                FROM AuditCFind WHERE RunId = $runId;
+                FROM AuditCFind {whereOrOrderClause};
                 """;
-            command.Parameters.AddWithValue("$runId", runId);
+            bindParams(command);
 
             await using var reader = await command.ExecuteReaderAsync(ct);
             if (await reader.ReadAsync(ct))
@@ -121,7 +127,7 @@ public sealed class SqliteAuditStore : IAuditWriter, IAuditReader
                 SELECT ItemIndex, ProvenanceJson, SuppressedReason
                 FROM AuditCFindItem WHERE RunId = $runId ORDER BY ItemIndex;
                 """;
-            command.Parameters.AddWithValue("$runId", runId);
+            command.Parameters.AddWithValue("$runId", record.RunId);
 
             await using var reader = await command.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))

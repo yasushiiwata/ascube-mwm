@@ -10,5 +10,6 @@
     <Project Path="tests/Ascube.Mwm.Core.Tests/Ascube.Mwm.Core.Tests.csproj" />
     <Project Path="tests/Ascube.Mwm.Scp.Tests/Ascube.Mwm.Scp.Tests.csproj" />
     <Project Path="tests/Ascube.Mwm.Store.Tests/Ascube.Mwm.Store.Tests.csproj" />
+    <Project Path="tests/Ascube.Mwm.Tools.Tests/Ascube.Mwm.Tools.Tests.csproj" />
   </Folder>
 </Solution>
