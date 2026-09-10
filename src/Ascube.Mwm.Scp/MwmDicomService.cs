@@ -1,6 +1,8 @@
 using System.Linq;
 using System.Text;
+using Ascube.Mwm.Abstractions;
 using Ascube.Mwm.Core.Config;
+using Ascube.Mwm.Core.Matching;
 using FellowOakDicom;
 using FellowOakDicom.Network;
 using Microsoft.Extensions.Logging;
@@ -8,10 +10,10 @@ using Microsoft.Extensions.Logging;
 namespace Ascube.Mwm.Scp;
 
 /// <summary>
-/// C-ECHO SCP ＋ アソシエーション制御（実装指示書 v2 T3）＋ C-FIND 最小実装（T4）。
+/// C-ECHO SCP ＋ アソシエーション制御（実装指示書 v2 T3）＋ C-FIND（T4 最小実装 → T5 で実データ照合）。
 /// フロー：ルーティングでプロファイル解決 → 解決結果をログ出力 → Calling AE 照合 → PC ごとに accept/reject。
-/// C-FIND は現時点ではハードコードした1件を返すのみ（実データ照合は T5 MatchEngine、
-/// データセット組み立ては T6 DatasetBuilder で置き換える）。
+/// C-FIND は <see cref="MatchEngine"/> で日付範囲・PatientID・PatientName・Modality を判定し、
+/// 一致した実データのみ返す。データセットの組み立ては暫定の直接マッピング（本格的な DSL 駆動は T6 DatasetBuilder）。
 /// </summary>
 public sealed class MwmDicomService : DicomService, IDicomServiceProvider, IDicomCEchoProvider, IDicomCFindProvider
 {
@@ -20,6 +22,8 @@ public sealed class MwmDicomService : DicomService, IDicomServiceProvider, IDico
         DicomUID.Verification,
         DicomUID.ModalityWorklistInformationModelFind,
     ];
+
+    private DeviceProfile? _resolvedProfile;
 
     public MwmDicomService(INetworkStream stream, Encoding fallbackEncoding, ILogger logger, DicomServiceDependencies dependencies)
         : base(stream, fallbackEncoding, logger, dependencies)
@@ -46,6 +50,7 @@ public sealed class MwmDicomService : DicomService, IDicomServiceProvider, IDico
         Logger.LogInformation(
             "ルーティング解決: Called AE \"{CalledAe}\" → プロファイル \"{ProfileId}\"（Calling AE=\"{CallingAe}\" Remote={RemoteHost}:{RemotePort}）",
             calledAe, profile.Id, association.CallingAE, association.RemoteHost, association.RemotePort);
+        _resolvedProfile = profile;
 
         if (!IsCallingAeAccepted(profile, association.CallingAE, out var shouldReject))
         {
@@ -129,49 +134,126 @@ public sealed class MwmDicomService : DicomService, IDicomServiceProvider, IDico
         => Task.FromResult(new DicomCEchoResponse(request, DicomStatus.Success));
 
     /// <summary>
-    /// T4：C-FIND 最小実装。実データの照合（T5 MatchEngine）・実データからの組み立て（T6 DatasetBuilder）は
-    /// まだ無く、ハードコードした1件を Pending で返してから Success を返すだけ。
-    /// ここで得た pcap を以後の「正解サンプル」とする（実装指示書 v2 T4）。
+    /// T5：日付範囲・PatientID・PatientName・Modality を判定し、一致した実データのみ返す
+    /// （実装指示書 v2 T5）。1人モデルなので0件か1件。該当0件は Success かつ結果なし（規則2）。
+    /// データセットの組み立ては暫定の直接マッピング（DSL 駆動の一般化は T6 DatasetBuilder）。
     /// </summary>
     public async IAsyncEnumerable<DicomCFindResponse> OnCFindRequestAsync(DicomCFindRequest request)
     {
-        var response = new DicomCFindResponse(request, DicomStatus.Pending)
+        var profile = _resolvedProfile
+            ?? throw new InvalidOperationException("C-FIND 処理時にプロファイルが未解決です（アソシエーション確立後のはずです）");
+
+        var criteria = QueryCriteriaParser.Parse(request.Dataset);
+
+        await foreach (var item in Routing.Repository.QueryAsync(criteria, limit: 1))
         {
-            Dataset = BuildFixedWorklistDataset(),
-        };
-        yield return response;
+            if (!MatchEngine.EvaluateModality(criteria.Modality, profile.ScheduledStationModality, profile.ModalityMatching))
+            {
+                Logger.LogInformation(
+                    "C-FIND: Modality 不一致のため0件（要求=\"{Requested}\", 保持=\"{Candidate}\", mode={Mode}）",
+                    criteria.Modality, profile.ScheduledStationModality, profile.ModalityMatching);
+                continue;
+            }
+
+            var dataset = TryBuildDataset(item, profile);
+            if (dataset is null)
+            {
+                // 規則4：患者に属する値が欠損している行は捏造せず返さない。
+                // 監査への記録（AuditCFindItem 等）は T8 で構造化する。
+                Logger.LogWarning(
+                    "C-FIND: WorkItemId={WorkItemId} は PatientName が欠損しているため Suppressed（規則4）",
+                    item.WorkItemId);
+                continue;
+            }
+
+            yield return new DicomCFindResponse(request, DicomStatus.Pending) { Dataset = dataset };
+        }
 
         yield return new DicomCFindResponse(request, DicomStatus.Success);
-        await Task.CompletedTask;
     }
 
-    private static DicomDataset BuildFixedWorklistDataset()
+    private static DicomDataset? TryBuildDataset(WorkItemView item, DeviceProfile profile)
     {
+        var patientName = ComposePatientName(item);
+        if (patientName is null)
+        {
+            return null;
+        }
+
         var dataset = new DicomDataset();
 
         // 規則6：SpecificCharacterSet は DicomDataset に最初に設定する。
-        dataset.Add(DicomTag.SpecificCharacterSet, "ISO_IR 192");
+        dataset.Add(DicomTag.SpecificCharacterSet, profile.SpecificCharacterSet);
 
-        // T4 時点ではハードコード値（実データではない）。T5/T6 で実データ経由の生成に置き換える。
-        dataset.Add(DicomTag.PatientName, "アスキューブ^タロウ");
-        dataset.Add(DicomTag.PatientID, "000012345678");
-        dataset.Add(DicomTag.PatientBirthDate, "19700101");
-        dataset.Add(DicomTag.PatientSex, "M");
-        dataset.Add(DicomTag.StudyInstanceUID, "2.25.100000000000000000000000000000000001");
-        dataset.Add(DicomTag.AccessionNumber, "A0000001");
-        dataset.Add(DicomTag.RequestedProcedureID, "R0000001");
-        dataset.Add(DicomTag.RequestedProcedureDescription, "骨密度測定");
+        dataset.Add(DicomTag.PatientName, patientName);
+        dataset.Add(DicomTag.PatientID, item.StablePatientId);
+        dataset.Add(DicomTag.PatientBirthDate, item.BirthDate ?? string.Empty);
+        dataset.Add(DicomTag.PatientSex, ToDicomSex(item.Sex));
+        dataset.Add(DicomTag.StudyInstanceUID, item.StudyInstanceUid);
+
+        if (item.AccessionNumber is { Length: > 0 } accessionNumber)
+        {
+            dataset.Add(DicomTag.AccessionNumber, accessionNumber);
+        }
+
+        if (item.RequestedProcedureId is { Length: > 0 } requestedProcedureId)
+        {
+            dataset.Add(DicomTag.RequestedProcedureID, requestedProcedureId);
+        }
+
+        if (item.RequestedProcedureDesc is { Length: > 0 } requestedProcedureDesc)
+        {
+            dataset.Add(DicomTag.RequestedProcedureDescription, requestedProcedureDesc);
+        }
+
+        // 規則17：当日測定していない身長・体重はタグごと省略する（前回値を今日の値として送らない）。
+        if (item.PatientSizeM is { } sizeM)
+        {
+            dataset.Add(DicomTag.PatientSize, sizeM);
+        }
+
+        if (item.PatientWeightKg is { } weightKg)
+        {
+            dataset.Add(DicomTag.PatientWeight, weightKg);
+        }
 
         var scheduledStep = new DicomDataset
         {
-            { DicomTag.Modality, "BMD" },
-            { DicomTag.ScheduledStationAETitle, "ASCUBE_MWM" },
-            { DicomTag.ScheduledProcedureStepStartDate, DateTime.Today },
-            { DicomTag.ScheduledProcedureStepStartTime, DateTime.Today },
-            { DicomTag.ScheduledProcedureStepDescription, "骨密度測定" },
+            { DicomTag.Modality, profile.ScheduledStationModality ?? string.Empty },
+            { DicomTag.ScheduledStationAETitle, profile.AeTitle },
+            { DicomTag.ScheduledProcedureStepStartDate, item.ScheduledDate },
         };
+
+        if (item.RequestedProcedureDesc is { Length: > 0 } spsDesc)
+        {
+            scheduledStep.Add(DicomTag.ScheduledProcedureStepDescription, spsDesc);
+        }
+
         dataset.Add(new DicomSequence(DicomTag.ScheduledProcedureStepSequence, scheduledStep));
 
         return dataset;
     }
+
+    private static string? ComposePatientName(WorkItemView item)
+    {
+        if (!string.IsNullOrEmpty(item.FamilyNameKanji) || !string.IsNullOrEmpty(item.GivenNameKanji))
+        {
+            return $"{item.FamilyNameKanji}^{item.GivenNameKanji}";
+        }
+
+        if (!string.IsNullOrEmpty(item.FamilyNameKana) || !string.IsNullOrEmpty(item.GivenNameKana))
+        {
+            return $"{item.FamilyNameKana}^{item.GivenNameKana}";
+        }
+
+        return null;
+    }
+
+    private static string ToDicomSex(Sex sex) => sex switch
+    {
+        Sex.Male => "M",
+        Sex.Female => "F",
+        Sex.Other => "O",
+        _ => string.Empty,
+    };
 }
