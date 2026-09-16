@@ -80,7 +80,7 @@ public sealed class SqliteWorklistWriter : IWorklistWriter
             AccessionNumber = row.AccessionNumber,
             RequestedProcedureId = row.RequestedProcedureId,
             RequestedProcedureDesc = row.RequestedProcedureDesc,
-            PatientSizeM = row.PatientSizeM,
+            PatientHeightCm = row.PatientHeightCm,
             PatientWeightKg = row.PatientWeightKg,
             SourceMessageId = row.SourceMessageId,
         };
@@ -146,7 +146,7 @@ public sealed class SqliteWorklistWriter : IWorklistWriter
                       AccessionNumber = $accession,
                       RequestedProcedureId = $procId,
                       RequestedProcedureDesc = $procDesc,
-                      PatientSizeM = $sizeM,
+                      PatientHeightCm = $heightCm,
                       PatientWeightKg = $weightKg,
                       SourceMessageId = $sourceId,
                       UpdatedAtUtc = $now
@@ -166,11 +166,11 @@ public sealed class SqliteWorklistWriter : IWorklistWriter
             INSERT INTO WorkItem
               (WorkItemId, StablePatientId, ScheduledDate, DeviceProfileId,
                AccessionNumber, RequestedProcedureId, RequestedProcedureDesc,
-               PatientSizeM, PatientWeightKg, SourceMessageId, CreatedAtUtc, UpdatedAtUtc)
+               PatientHeightCm, PatientWeightKg, SourceMessageId, CreatedAtUtc, UpdatedAtUtc)
             VALUES
               ($id, $pid, $date, $profile,
                $accession, $procId, $procDesc,
-               $sizeM, $weightKg, $sourceId, $now, $now);
+               $heightCm, $weightKg, $sourceId, $now, $now);
             """;
         insert.Parameters.AddWithValue("$id", newId);
         insert.Parameters.AddWithValue("$pid", entry.StablePatientId);
@@ -186,7 +186,7 @@ public sealed class SqliteWorklistWriter : IWorklistWriter
         command.Parameters.AddWithValue("$accession", (object?)entry.AccessionNumber ?? DBNull.Value);
         command.Parameters.AddWithValue("$procId", (object?)entry.RequestedProcedureId ?? DBNull.Value);
         command.Parameters.AddWithValue("$procDesc", (object?)entry.RequestedProcedureDesc ?? DBNull.Value);
-        command.Parameters.AddWithValue("$sizeM", (object?)entry.PatientSizeM ?? DBNull.Value);
+        command.Parameters.AddWithValue("$heightCm", (object?)entry.PatientHeightCm ?? DBNull.Value);
         command.Parameters.AddWithValue("$weightKg", (object?)entry.PatientWeightKg ?? DBNull.Value);
         command.Parameters.AddWithValue("$sourceId", (object?)entry.SourceMessageId ?? DBNull.Value);
         command.Parameters.AddWithValue("$now", nowText);

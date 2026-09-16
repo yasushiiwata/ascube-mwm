@@ -38,7 +38,7 @@ public class DatasetBuilderTests
         AccessionNumber = "A1000001",
         RequestedProcedureId = "RP0001",
         RequestedProcedureDesc = "骨密度測定",
-        PatientSizeM = 1.65,
+        PatientHeightCm = 165,
         PatientWeightKg = 55.5,
     };
 
@@ -86,7 +86,7 @@ public class DatasetBuilderTests
     public void Build_MissingPatientSizeAndWeight_OmitsTagsEntirely()
     {
         // 規則17：当日未測定なら (0010,1020)/(0010,1030) をタグごと省略する（空文字で出さない）。
-        var item = MakeFullItem() with { PatientSizeM = null, PatientWeightKg = null };
+        var item = MakeFullItem() with { PatientHeightCm = null, PatientWeightKg = null };
         var result = DatasetBuilder.Build(Profile, item, new DicomDataset());
 
         Assert.False(result.Suppressed);
@@ -97,11 +97,22 @@ public class DatasetBuilderTests
     [Fact]
     public void Build_PresentPatientSize_IsIncluded()
     {
-        var item = MakeFullItem() with { PatientSizeM = 1.65, PatientWeightKg = null };
+        var item = MakeFullItem() with { PatientHeightCm = 165, PatientWeightKg = null };
         var result = DatasetBuilder.Build(Profile, item, new DicomDataset());
 
         Assert.True(result.Dataset!.Contains(DicomTag.PatientSize));
         Assert.False(result.Dataset.Contains(DicomTag.PatientWeight));
+    }
+
+    [Fact]
+    public void Build_PatientHeightCm_IsConvertedToMetersForDicomTag()
+    {
+        // 設計変更メモ_v2.1.md §I：DICOM (0010,1020) はメートル単位。BRIDGE-Naviはcmで渡すため、
+        // ascube-mwm側（DatasetBuilder）で変換する。165cm→1.65m。
+        var item = MakeFullItem() with { PatientHeightCm = 165, PatientWeightKg = null };
+        var result = DatasetBuilder.Build(Profile, item, new DicomDataset());
+
+        Assert.Equal("1.65", result.Dataset!.GetString(DicomTag.PatientSize));
     }
 
     [Fact]

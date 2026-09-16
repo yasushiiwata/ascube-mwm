@@ -26,6 +26,10 @@ static async Task<int> RunAsync(string[] args)
             return await AdminHealthCommand.RunAsync(args[2..]);
         case ["admin", "export-support-bundle", ..]:
             return await AdminExportSupportBundleCommand.RunAsync(args[2..]);
+        case ["admin", "set-current", ..]:
+            return await AdminSetCurrentCommand.RunAsync(args[2..]);
+        case ["admin", "clear-current", ..]:
+            return await AdminClearCurrentCommand.RunAsync(args[2..]);
     }
 
     Console.Error.WriteLine("使い方:");
@@ -37,5 +41,7 @@ static async Task<int> RunAsync(string[] args)
     Console.Error.WriteLine("  mwm-admin " + AdminExplainQueryCommand.Usage);
     Console.Error.WriteLine("  mwm-admin " + AdminHealthCommand.Usage);
     Console.Error.WriteLine("  mwm-admin " + AdminExportSupportBundleCommand.Usage);
+    Console.Error.WriteLine("  mwm-admin " + AdminSetCurrentCommand.Usage);
+    Console.Error.WriteLine("  mwm-admin " + AdminClearCurrentCommand.Usage);
     return 2;
 }

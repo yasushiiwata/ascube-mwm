@@ -29,7 +29,7 @@ public static partial class ProfileValidator
         "AccessionNumber",
         "RequestedProcedureId",
         "RequestedProcedureDesc",
-        "PatientSizeM",
+        "PatientHeightCm",
         "PatientWeightKg",
         "SourceMessageId",
     };

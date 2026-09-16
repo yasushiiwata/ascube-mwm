@@ -35,7 +35,7 @@ internal static class SqliteSchema
               AccessionNumber        TEXT,
               RequestedProcedureId   TEXT,
               RequestedProcedureDesc TEXT,
-              PatientSizeM           REAL,
+              PatientHeightCm        REAL,
               PatientWeightKg        REAL,
               SourceMessageId        TEXT,
               CreatedAtUtc           TEXT NOT NULL,
