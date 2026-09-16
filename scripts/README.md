@@ -19,6 +19,8 @@
 | `install-service.ps1` | Windows サービスとしてインストールする（要管理者権限。自動起動・異常終了時の自動復帰を設定）。 |
 | `rollback.ps1` | `install-service.ps1` 実行前の状態へ戻す（要管理者権限。5分以内が目標）。 |
 | `06_wlmscpfs_compare.ps1` | T13：DCMTK純正の参照実装 `wlmscpfs` と `mwm-scp` の応答をタグ・VR・値・SQ構造で意味比較する（UID・時刻等の可変値は除外）。使い方は次節。 |
+| `07_set-current.ps1` | ⚠開発用。受診者をワークリストに1人セットする（`admin set-current`）。BRIDGE-Naviとの結線が無い/不調なときに、SCP-装置間だけの疎通を証明する手段。本番の投入経路ではない。使い方は次々節。 |
+| `08_clear-current.ps1` | `07_set-current.ps1` の対。ワークリストを空にする（`admin clear-current`）。以後のC-FINDは0件+Success。 |
 
 `install-service.ps1` / `rollback.ps1` はシステムへの変更（サービス登録・ACL）を伴うため、
 このリポジトリの開発セッションでは自動実行していない。実機での実行前に内容を必ず確認すること。
@@ -58,6 +60,30 @@ DCMTK純正の `wlmscpfs`（別実装の参照 SCP）に同じ内容の受診者
   入れておくこと。
 - `findscu` に返却キーを1つも渡さないと（`QueryRetrieveLevel` だけだと）空応答の送信に失敗して
   異常終了する。本スクリプトは全返却キーを空値で列挙した `query.dcm` を都度生成して渡している。
+
+## 07_set-current.ps1 / 08_clear-current.ps1（開発用：BRIDGE-Navi抜きでの受診者投入）
+
+**本番の受診者データ投入経路ではない。** `mwm-admin`/`mwm-scu` にはBRIDGE-Naviの代わりを
+するコマンドが無かった（docs/連携テスト手順.md §2）ため追加した。BRIDGE-Naviとの結線が
+まだ無い、または現地で結線が不調なときに、「SCPと装置の間は正常だ」を**BRIDGE-Navi抜きで**
+証明するための道具。中身は `SqliteWorklistWriter.SetCurrentAsync`/`ClearCurrentAsync` を
+CLIから直接呼ぶだけの薄いラッパー（本体コードとは別経路ではない）。
+
+```powershell
+# 受診者を1人セット（PatientIdは依頼電文 項番3「個人番号」12桁。★項番4「受診番号」ではない＝規則18）
+.\scripts\07_set-current.ps1 -PatientId 000012345678 -FamilyKanji 武田 -GivenKanji 太郎 `
+    -FamilyKana ﾀｹﾀﾞ -GivenKana ﾀﾛｳ -BirthDate 19600515 -Sex M -ProcedureDesc "骨密度(駅前)"
+
+# 確認
+.\scripts\01_health.ps1
+.\scripts\04_find.ps1
+
+# 片付け（次の受診者テストの前に必ず。前の受診者を残したまま次を投入しない＝規則16）
+.\scripts\08_clear-current.ps1
+```
+
+`-Sex` は `M`/`F`/`O`（省略時は不明）。`-ScheduledDate` は省略時 `today`。
+`-PatientId` が12桁の数字でない場合、`mwm-admin` 側で項番3/項番4取り違えの警告が出る。
 
 ## switch-charset.ps1（T10：ホットリロードによる文字コード切替）
 
