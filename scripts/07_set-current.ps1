@@ -26,6 +26,8 @@ param(
     [string]$Accession = "",
     [string]$ProcedureId = "",
     [string]$ProcedureDesc = "",
+    [string]$HeightCm = "",
+    [string]$WeightKg = "",
     [string]$ToolsExe = ""
 )
 
@@ -47,6 +49,8 @@ if ($Sex -ne "") { $adminArgs += @("--sex", $Sex) }
 if ($Accession -ne "") { $adminArgs += @("--accession", $Accession) }
 if ($ProcedureId -ne "") { $adminArgs += @("--procedure-id", $ProcedureId) }
 if ($ProcedureDesc -ne "") { $adminArgs += @("--procedure-desc", $ProcedureDesc) }
+if ($HeightCm -ne "") { $adminArgs += @("--height-cm", $HeightCm) }
+if ($WeightKg -ne "") { $adminArgs += @("--weight-kg", $WeightKg) }
 
 if ($ToolsExe -ne "") {
     & $ToolsExe @adminArgs
