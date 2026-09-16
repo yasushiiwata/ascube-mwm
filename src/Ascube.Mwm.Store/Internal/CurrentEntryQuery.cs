@@ -23,7 +23,7 @@ internal static class CurrentEntryQuery
               ua.StudyInstanceUid,
               wi.StablePatientId, wi.ScheduledDate, wi.AccessionNumber,
               wi.RequestedProcedureId, wi.RequestedProcedureDesc,
-              wi.PatientSizeM, wi.PatientWeightKg, wi.SourceMessageId,
+              wi.PatientHeightCm, wi.PatientWeightKg, wi.SourceMessageId,
               p.FamilyNameKanji, p.GivenNameKanji, p.FamilyNameKana, p.GivenNameKana, p.BirthDate, p.Sex
             FROM CurrentEntry ce
             JOIN WorkItem wi ON wi.WorkItemId = ce.WorkItemId
@@ -48,7 +48,7 @@ internal static class CurrentEntryQuery
             AccessionNumber: reader.IsDBNull(6) ? null : reader.GetString(6),
             RequestedProcedureId: reader.IsDBNull(7) ? null : reader.GetString(7),
             RequestedProcedureDesc: reader.IsDBNull(8) ? null : reader.GetString(8),
-            PatientSizeM: reader.IsDBNull(9) ? null : reader.GetDouble(9),
+            PatientHeightCm: reader.IsDBNull(9) ? null : reader.GetDouble(9),
             PatientWeightKg: reader.IsDBNull(10) ? null : reader.GetDouble(10),
             SourceMessageId: reader.IsDBNull(11) ? null : reader.GetString(11),
             FamilyNameKanji: reader.IsDBNull(12) ? null : reader.GetString(12),

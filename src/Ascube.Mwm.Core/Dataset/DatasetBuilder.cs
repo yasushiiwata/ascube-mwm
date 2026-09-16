@@ -234,7 +234,9 @@ public static partial class DatasetBuilder
         "AccessionNumber" => NullIfEmpty(item.AccessionNumber),
         "RequestedProcedureId" => NullIfEmpty(item.RequestedProcedureId),
         "RequestedProcedureDesc" => NullIfEmpty(item.RequestedProcedureDesc),
-        "PatientSizeM" => FormatDecimal(item.PatientSizeM),
+        // (0010,1020)はDICOM規格上メートル単位。WorkItemView.PatientHeightCmはBRIDGE-Navi由来のセンチメートル値のため、
+        // ここで変換する（設計変更メモ_v2.1.md §I：変換責務をascube-mwm側に一元化）。
+        "PatientHeightCm" => FormatDecimal(item.PatientHeightCm / 100.0),
         "PatientWeightKg" => FormatDecimal(item.PatientWeightKg),
         "SourceMessageId" => NullIfEmpty(item.SourceMessageId),
         _ => throw new NotSupportedException($"未知の db: 列です（ProfileValidator を通過しているはずなのに）: {column}"),

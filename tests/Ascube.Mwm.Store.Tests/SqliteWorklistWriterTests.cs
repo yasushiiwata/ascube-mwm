@@ -17,7 +17,7 @@ public class SqliteWorklistWriterTests
         AccessionNumber = "2609280001010053",
         RequestedProcedureId = "00110",
         RequestedProcedureDesc = "B0100：一日ドック",
-        PatientSizeM = 1.70,
+        PatientHeightCm = 170,
         PatientWeightKg = 65.0,
         SourceMessageId = "1irai20260928083008.csv",
     };

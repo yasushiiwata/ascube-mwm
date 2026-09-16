@@ -29,7 +29,8 @@ public sealed record WorkItemView
 
     public string? RequestedProcedureDesc { get; init; }
 
-    public double? PatientSizeM { get; init; }
+    /// <summary>当日測定した身長（センチメートル）。DICOMの(0010,1020)はメートル単位だが、変換はDatasetBuilder側の責務。</summary>
+    public double? PatientHeightCm { get; init; }
 
     public double? PatientWeightKg { get; init; }
 

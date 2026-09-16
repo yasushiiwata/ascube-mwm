@@ -13,7 +13,7 @@ internal sealed record CurrentEntryRow(
     string? AccessionNumber,
     string? RequestedProcedureId,
     string? RequestedProcedureDesc,
-    double? PatientSizeM,
+    double? PatientHeightCm,
     double? PatientWeightKg,
     string? SourceMessageId,
     string? FamilyNameKanji,

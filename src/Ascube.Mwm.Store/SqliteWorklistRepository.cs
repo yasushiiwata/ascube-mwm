@@ -113,7 +113,7 @@ public sealed class SqliteWorklistRepository : IWorklistRepository
         command.CommandText = """
             SELECT w.WorkItemId, w.StablePatientId, p.FamilyNameKanji, p.GivenNameKanji, p.FamilyNameKana, p.GivenNameKana,
                    p.BirthDate, p.Sex, w.ScheduledDate, w.AccessionNumber, w.RequestedProcedureId, w.RequestedProcedureDesc,
-                   w.PatientSizeM, w.PatientWeightKg, w.SourceMessageId, u.StudyInstanceUid
+                   w.PatientHeightCm, w.PatientWeightKg, w.SourceMessageId, u.StudyInstanceUid
             FROM WorkItem w
             JOIN Patient p ON p.StablePatientId = w.StablePatientId
             LEFT JOIN UidAllocation u ON u.WorkItemId = w.WorkItemId
@@ -149,7 +149,7 @@ public sealed class SqliteWorklistRepository : IWorklistRepository
             AccessionNumber = reader.IsDBNull(9) ? null : reader.GetString(9),
             RequestedProcedureId = reader.IsDBNull(10) ? null : reader.GetString(10),
             RequestedProcedureDesc = reader.IsDBNull(11) ? null : reader.GetString(11),
-            PatientSizeM = reader.IsDBNull(12) ? null : reader.GetDouble(12),
+            PatientHeightCm = reader.IsDBNull(12) ? null : reader.GetDouble(12),
             PatientWeightKg = reader.IsDBNull(13) ? null : reader.GetDouble(13),
             SourceMessageId = reader.IsDBNull(14) ? null : reader.GetString(14),
             StudyInstanceUid = studyInstanceUid,
@@ -183,7 +183,7 @@ public sealed class SqliteWorklistRepository : IWorklistRepository
         AccessionNumber = row.AccessionNumber,
         RequestedProcedureId = row.RequestedProcedureId,
         RequestedProcedureDesc = row.RequestedProcedureDesc,
-        PatientSizeM = row.PatientSizeM,
+        PatientHeightCm = row.PatientHeightCm,
         PatientWeightKg = row.PatientWeightKg,
         SourceMessageId = row.SourceMessageId,
     };

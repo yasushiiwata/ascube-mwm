@@ -40,7 +40,7 @@
       { "tag": "(0010,0020)", "vr": "LO", "vm": "1", "source": "db:StablePatientId", "required": true, "onMissing": "reject-item", "maxLength": 64 },
       { "tag": "(0010,0030)", "vr": "DA", "vm": "1", "source": "db:BirthDate", "required": false, "onMissing": "empty" },
       { "tag": "(0010,0040)", "vr": "CS", "vm": "1", "source": "auto:patientSex", "required": false, "onMissing": "empty" },
-      { "tag": "(0010,1020)", "vr": "DS", "vm": "1", "source": "db:PatientSizeM", "required": false, "onMissing": "omit" },
+      { "tag": "(0010,1020)", "vr": "DS", "vm": "1", "source": "db:PatientHeightCm", "required": false, "onMissing": "omit" },
       { "tag": "(0010,1030)", "vr": "DS", "vm": "1", "source": "db:PatientWeightKg", "required": false, "onMissing": "omit" },
       { "tag": "(0020,000D)", "vr": "UI", "vm": "1", "source": "uid:study", "required": true, "onMissing": "reject-item" },
       { "tag": "(0008,0050)", "vr": "SH", "vm": "1", "source": "db:AccessionNumber", "required": false, "onMissing": "empty", "maxLength": 16 },
