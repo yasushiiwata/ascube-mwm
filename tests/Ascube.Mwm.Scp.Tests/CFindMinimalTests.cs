@@ -1,4 +1,5 @@
 using Ascube.Mwm.Abstractions;
+using Ascube.Mwm.Store;
 using FellowOakDicom;
 using FellowOakDicom.Network;
 using FellowOakDicom.Network.Client;
@@ -161,5 +162,34 @@ public class CFindMinimalTests
 
         Assert.Empty(pending);
         Assert.Equal(DicomStatus.Success, final);
+    }
+
+    [Fact]
+    public async Task CFind_WhenDatabaseFileMissing_ReturnsZeroResultsAndSuccess()
+    {
+        // FIX-001：data\mwm.db がまだ作られていない状態（＝当日誰も SetCurrentAsync していない）
+        // で C-FIND を受けても、アソシエーションは維持され、0件 + Success を返すこと（規則2）。
+        // FakeWorklistRepository ではこの欠陥（Microsoft.Data.Sqlite の「ファイルが開けない」例外）を
+        // 再現できないため、実際の Ascube.Mwm.Store.SqliteWorklistRepository を使う。
+        var dir = Directory.CreateTempSubdirectory("ascube-mwm-scp-tests-");
+        try
+        {
+            var options = new MwmStoreOptions
+            {
+                DatabasePath = Path.Combine(dir.FullName, "mwm.db"), // 意図的に作らない
+                DeviceProfileId = "TEST",
+            };
+            var repository = new SqliteWorklistRepository(options);
+            using var server = new ScpTestServer(repository, TestProfileFactory.Build());
+
+            var (pending, final) = await RunFindAsync(server.Port);
+
+            Assert.Empty(pending);
+            Assert.Equal(DicomStatus.Success, final);
+        }
+        finally
+        {
+            dir.Delete(recursive: true);
+        }
     }
 }

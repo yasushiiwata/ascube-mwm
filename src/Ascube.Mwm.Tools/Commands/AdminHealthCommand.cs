@@ -69,32 +69,27 @@ internal static class AdminHealthCommand
         }
 
         // --- 現在の受診者の有無とTTL残 ---
-        if (File.Exists(databasePath))
-        {
-            var repository = new SqliteWorklistRepository(new MwmStoreOptions { DatabasePath = databasePath, DeviceProfileId = profileId });
-            var status = await repository.GetCurrentStatusAsync();
+        // FIX-001：DB未作成（＝当日まだ誰も SetCurrentAsync していない）は異常ではなく
+        // 「現在の受診者：なし」（規則2）。GetCurrentStatusAsync 側でこの状態を吸収するので
+        // ここでは File.Exists による分岐をしない。
+        var repository = new SqliteWorklistRepository(new MwmStoreOptions { DatabasePath = databasePath, DeviceProfileId = profileId });
+        var status = await repository.GetCurrentStatusAsync();
 
-            if (!status.Exists)
-            {
-                Console.WriteLine("現在の受診者   : なし");
-            }
-            else if (status.IsAlive)
-            {
-                var remaining = status.ExpiresAtUtc!.Value - DateTimeOffset.UtcNow;
-                var remainingText = remaining > TimeSpan.Zero
-                    ? $"{(int)remaining.TotalMinutes:00}:{remaining.Seconds:00}"
-                    : "00:00";
-                Console.WriteLine($"現在の受診者   : あり（TTL残 {remainingText}）");
-            }
-            else
-            {
-                Console.WriteLine("現在の受診者   : あり（ただしTTL切れ。次のC-FINDは0件になります）");
-            }
+        if (!status.Exists)
+        {
+            Console.WriteLine("現在の受診者   : なし");
+        }
+        else if (status.IsAlive)
+        {
+            var remaining = status.ExpiresAtUtc!.Value - DateTimeOffset.UtcNow;
+            var remainingText = remaining > TimeSpan.Zero
+                ? $"{(int)remaining.TotalMinutes:00}:{remaining.Seconds:00}"
+                : "00:00";
+            Console.WriteLine($"現在の受診者   : あり（TTL残 {remainingText}）");
         }
         else
         {
-            Console.WriteLine($"現在の受診者   : 不明（ワークリストDBが見つかりません: {databasePath}）");
-            healthy = false;
+            Console.WriteLine("現在の受診者   : あり（ただしTTL切れ。次のC-FINDは0件になります）");
         }
 
         // --- 直近アソシエーション（監査ログ） ---

@@ -1,4 +1,5 @@
 using Ascube.Mwm.Abstractions;
+using Microsoft.Data.Sqlite;
 
 namespace Ascube.Mwm.Store.Tests;
 
@@ -289,6 +290,59 @@ public class SqliteWorklistRepositoryTests
         var view = await repository.GetLatestByPatientIdAsync("999999999999");
 
         Assert.Null(view);
+    }
+
+    // FIX-001：data\mwm.db が存在しない（＝誰も SetCurrentAsync していない）状態は
+    // 「今この端末に受診者はいない」であって異常ではない（規則2）。例外を投げてはならない。
+    // Repository.TryGetLiveViewAsync は private のため、その唯一の呼び出し元である QueryAsync
+    // 経由でこの受入条件を検証する。
+
+    [Fact]
+    public async Task QueryAsync_WhenDatabaseFileMissing_ReturnsEmptyWithoutError()
+    {
+        using var db = new TestDatabase(); // ファイルパスを払い出すだけで、ファイルは作らない
+        var repository = new SqliteWorklistRepository(db.Options());
+
+        var results = await CollectAsync(repository);
+
+        Assert.Empty(results);
+    }
+
+    [Fact]
+    public async Task ExplainAsync_WhenDatabaseFileMissing_ReturnsNotFoundWithoutError()
+    {
+        using var db = new TestDatabase();
+        var repository = new SqliteWorklistRepository(db.Options());
+
+        var result = await repository.ExplainAsync(new QueryCriteria());
+
+        Assert.False(result.Found);
+        Assert.Contains("未作成", result.Reason);
+    }
+
+    [Fact]
+    public async Task GetCurrentStatusAsync_WhenDatabaseFileMissing_ReturnsNotExists()
+    {
+        using var db = new TestDatabase();
+        var repository = new SqliteWorklistRepository(db.Options());
+
+        var status = await repository.GetCurrentStatusAsync();
+
+        Assert.False(status.Exists);
+        Assert.False(status.IsAlive);
+    }
+
+    [Fact]
+    public async Task QueryAsync_WhenDatabaseFileUnreadable_StillThrows()
+    {
+        // 握りつぶしていないことの証明：ファイルは「ある」が開けない場合は、
+        // 「ファイルが無い」判定に化けてはならず、これまでどおり例外が上に投げられること。
+        using var db = new TestDatabase();
+        File.WriteAllBytes(db.Path, []);
+        using var exclusiveLock = new FileStream(db.Path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+        var repository = new SqliteWorklistRepository(db.Options());
+
+        await Assert.ThrowsAsync<SqliteException>(() => CollectAsync(repository));
     }
 
     private static async Task<List<WorkItemView>> CollectAsync(SqliteWorklistRepository repository, int limit = 10, QueryCriteria? criteria = null)
