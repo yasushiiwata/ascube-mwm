@@ -198,6 +198,8 @@ public sealed class MwmDicomService : DicomService, IDicomServiceProvider, IDico
                 // CurrentEntry 不在・TTL切れ・日付範囲外・PatientID/PatientName不一致は Repository 側が判定する）。
                 var explainResult = await Routing.Repository.ExplainAsync(criteria);
                 explain = explainResult.Reason;
+                // FIX-001：DB未作成もこの経路を通る。警告・エラーにしない（規則2・正常系）。
+                Logger.LogInformation("C-FIND: 0件で応答します（理由: {Reason}）", explain);
             }
 
             yield return new DicomCFindResponse(request, DicomStatus.Success);

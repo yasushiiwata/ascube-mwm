@@ -43,6 +43,12 @@ public sealed class SqliteWorklistRepository : IWorklistRepository
 
     public async Task<ExplainResult> ExplainAsync(QueryCriteria c, CancellationToken ct = default)
     {
+        if (!File.Exists(_options.DatabasePath))
+        {
+            // FIX-001：DB未作成＝「今この端末に受診者はいない」であって異常ではない（規則2）。
+            return new ExplainResult { Found = false, Reason = "ワークリストDBが未作成のため受診者なしとして応答します（正常系）" };
+        }
+
         await using var connection = await OpenAsync(ct);
         var row = await CurrentEntryQuery.LoadAsync(connection, transaction: null, ct);
 
@@ -90,6 +96,12 @@ public sealed class SqliteWorklistRepository : IWorklistRepository
     /// <summary>admin health（T11）専用：CurrentEntry の有無とTTLだけを軽量に見る。</summary>
     public async Task<CurrentEntryStatus> GetCurrentStatusAsync(CancellationToken ct = default)
     {
+        if (!File.Exists(_options.DatabasePath))
+        {
+            // FIX-001：DB未作成＝「今この端末に受診者はいない」であって異常ではない（規則2）。
+            return new CurrentEntryStatus(Exists: false, IsAlive: false, SetAtUtc: null, ExpiresAtUtc: null);
+        }
+
         await using var connection = await OpenAsync(ct);
         var row = await CurrentEntryQuery.LoadAsync(connection, transaction: null, ct);
 
@@ -108,6 +120,12 @@ public sealed class SqliteWorklistRepository : IWorklistRepository
     /// </summary>
     public async Task<WorkItemView?> GetLatestByPatientIdAsync(string stablePatientId, CancellationToken ct = default)
     {
+        if (!File.Exists(_options.DatabasePath))
+        {
+            // FIX-001：DB未作成＝「今この端末に受診者はいない」であって異常ではない（規則2）。
+            return null;
+        }
+
         await using var connection = await OpenAsync(ct);
         await using var command = connection.CreateCommand();
         command.CommandText = """
@@ -158,6 +176,14 @@ public sealed class SqliteWorklistRepository : IWorklistRepository
 
     private async Task<WorkItemView?> TryGetLiveViewAsync(CancellationToken ct)
     {
+        if (!File.Exists(_options.DatabasePath))
+        {
+            // FIX-001：DB未作成＝「今この端末に受診者はいない」であって異常ではない（規則2）。
+            // ファイルが無いことだけを判定する。それ以外の開けない理由（権限・破損）は
+            // OpenAsync に投げさせ、握りつぶさない。
+            return null;
+        }
+
         await using var connection = await OpenAsync(ct);
         var row = await CurrentEntryQuery.LoadAsync(connection, transaction: null, ct);
         if (row is null || row.StudyInstanceUid is null || row.ExpiresAtUtc <= _timeProvider.GetUtcNow())
